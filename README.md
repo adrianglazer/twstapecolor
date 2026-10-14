@@ -1,3 +1,5 @@
+![Screenshot](images/twstapecolor.png)
+
 # twstapecolor v0.3.10
 
 Unofficial, open-source-ready experimental **Time & Sales row-background coloring** for **Interactive Brokers Trader Workstation (TWS)** on Linux. This project is not affiliated with, supported by, or endorsed by Interactive Brokers. It does **not** place trades, transmit orders, or use account credentials.
@@ -8,11 +10,11 @@ While TWS is running, `twstapecolor` attaches a Java agent using the JDK Attach 
 
 For any visible price-renderer column, it reads the renderer's `PROPERTY_NAME_COLOR_TAG` client property (`com.ib.chart.timesales.columns.ColoredColumn$ColorTag`). It then applies the same classification to **all visible columns of that row** (including Last, Size, Time, NBBO and Midpoint when visible):
 
-| Native TWS tag | Meaning in this tool | Row background |
-|---|---|---|
-| `UP` | Ask-side / up-arrow print | Dark green `#184F31` |
-| `DOWN` | Bid-side / down-arrow print | Dark red `#66262A` |
-| `NO_CHANGE` or absent/unknown | Neutral/unknown | Unchanged, original TWS renderer colors |
+| Native TWS tag                | Meaning in this tool        | Row background                          |
+| ----------------------------- | --------------------------- | --------------------------------------- |
+| `UP`                          | Ask-side / up-arrow print   | Dark green `#184F31`                    |
+| `DOWN`                        | Bid-side / down-arrow print | Dark red `#66262A`                      |
+| `NO_CHANGE` or absent/unknown | Neutral/unknown             | Unchanged, original TWS renderer colors |
 
 This **follows TWS's own indicator**, not an independent determination of trade aggressor or a bid/ask quote calculation. Whether UP/DOWN means a true executed-at-ask/bid trade depends on TWS's native semantics and the data feed. Selected cells are left unchanged. No colors are applied to unrecognized TWS tables.
 
