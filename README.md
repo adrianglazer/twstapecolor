@@ -1,4 +1,4 @@
-![Screenshot](images/twstapecolor.png)
+![Screenshot](https://github.com/adrianglazer/twstapecolor/blob/main/twstapecolor.png)
 
 # twstapecolor v0.3.10
 
