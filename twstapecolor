@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Always rebuild to prevent stale JARs after replacing sources.
+"$root/build.sh" >&2
+exec java --add-modules jdk.attach -jar "$root/build/twstapecolor.jar" "$@"

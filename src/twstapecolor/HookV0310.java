@@ -1,0 +1,321 @@
+package twstapecolor;
+import java.awt.*;
+import java.lang.instrument.*;
+import java.security.ProtectionDomain;
+import java.nio.file.*;
+import java.io.*;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.swing.*;
+import javax.swing.table.*;
+import org.objectweb.asm.*;
+
+/** Injects one method-exit hook into TWS's generic renderer selector; fails closed for non-tape tables. */
+public final class HookV0310 {
+  private static final String TARGET="jtable/basic/by";
+  private static final Set<String> MODELS=Set.of("feature.tape.ui.aT","feature.tape.data.k");
+  private static volatile Color askColor=new Color(24,79,49), bidColor=new Color(102,38,42);
+  private static volatile boolean enabled, visualTest, probeMode;
+  private static final int MAX_SAMPLES=80;
+  private static final java.util.concurrent.ConcurrentLinkedQueue<String> samples=new java.util.concurrent.ConcurrentLinkedQueue<>();
+  private static final AtomicLong probeSeen=new AtomicLong(), probeStored=new AtomicLong();
+  private static volatile boolean injected;
+  private static Class<?> targetClass;
+  private static Instrumentation instrumentation;
+  private static ClassFileTransformer transformer;
+  private static final AtomicReference<Throwable> transformFailure=new AtomicReference<>();
+  // Renderer lookup during direction detection must not be wrapped recursively.
+  private static final ThreadLocal<Boolean> resolvingDirection=ThreadLocal.withInitial(()->false);
+  private static final ThreadLocal<Boolean> rendering=ThreadLocal.withInitial(()->false);
+  private static final AtomicLong rendererSelections=new AtomicLong(), renderCalls=new AtomicLong(), paintCalls=new AtomicLong(), greenCalls=new AtomicLong(), redCalls=new AtomicLong(), neutralCalls=new AtomicLong();
+
+  public static synchronized String command(String cmd,Instrumentation inst) throws Exception {
+    instrumentation=inst;
+    String[] parts=cmd.split("\\|",-1);
+    String action=parts[0];
+    switch(action) {
+      case "report": return diagnosticReport();
+      case "probe": {
+        if(!inst.isRetransformClassesSupported())throw new UnsupportedOperationException("Retransformation not supported");
+        install(inst); enabled=false;visualTest=false;probeMode=true;
+        samples.clear();probeSeen.set(0);probeStored.set(0);
+        SwingUtilities.invokeLater(()->{for(Window w:Window.getWindows())w.repaint();});
+        return "Probe active (NO COLOR CHANGES). Wait for tape activity, then run report --pid. Samples capped at "+MAX_SAMPLES;
+      }
+      case "status": return "probeMode="+probeMode+" probeSeen="+probeSeen+" probeStored="+probeStored+" enabled="+enabled+" visualTest="+visualTest+" injected="+injected+" rendererSelections="+rendererSelections+" rendererCalls="+renderCalls+" visualPaintCalls="+paintCalls+" green="+greenCalls+" red="+redCalls+" neutral="+neutralCalls+" askColor="+hex(askColor)+" bidColor="+hex(bidColor);
+      case "dump": return dumpLoadedClass(inst);
+      case "stop": {
+        enabled=false;visualTest=false;probeMode=false;
+        String restored=detach();
+        return "Disabled. "+restored+" Reopen or restart TWS if the interface behaves unexpectedly.";
+      }
+      case "test-paint":case "start": {
+        if(action.equals("start") && parts.length==3) {
+          askColor=parseHexColor(parts[1]);
+          bidColor=parseHexColor(parts[2]);
+        } else if(parts.length!=1) throw new IllegalArgumentException("Invalid command arguments");
+        if(!inst.isRetransformClassesSupported())throw new UnsupportedOperationException("TWS JVM does not support class retransformation");
+        install(inst);probeMode=false;
+        visualTest=action.equals("test-paint");enabled=true;
+        SwingUtilities.invokeLater(()->{for(Window w:Window.getWindows())w.repaint();});
+        return (visualTest?"VISUAL TEST (NOT TRADE CLASSIFICATION): alternating green/red tape rows. ":"Directional full-row coloring: UP (ask)="+hex(askColor)+" DOWN (bid)="+hex(bidColor)+"; neutral untouched. ")+"Hook installed="+injected+". Use status to inspect counters, stop to restore.";
+      }
+      default:throw new IllegalArgumentException(cmd);
+    }
+  }
+  /** Obtain class bytes from the live JVM, independent of the installer's on-disk JARs.
+   *  The transformer returns null, so this command does not modify the target bytecode.
+   */
+  private static String dumpLoadedClass(Instrumentation inst) throws Exception {
+    Class<?> candidate=null;
+    int matches=0;
+    for(Class<?> c:inst.getAllLoadedClasses()) if(c.getName().equals("jtable.basic.by")) {
+      matches++;
+      if(candidate==null)candidate=c;
+    }
+    if(candidate==null)throw new IllegalStateException("jtable.basic.by not loaded; open a TWS table first");
+    if(!inst.isRetransformClassesSupported()||!inst.isModifiableClass(candidate))
+      throw new UnsupportedOperationException("JVM cannot capture jtable.basic.by through retransformation");
+    final Class<?> target=candidate;
+    final java.util.concurrent.atomic.AtomicReference<byte[]> snapshot=new java.util.concurrent.atomic.AtomicReference<>();
+    final java.util.concurrent.atomic.AtomicReference<String> methodDetails=new java.util.concurrent.atomic.AtomicReference<>();
+    ClassFileTransformer capture=new ClassFileTransformer() {
+      @Override public byte[] transform(ClassLoader loader,String name,Class<?> redef,ProtectionDomain pd,byte[] bytes) {
+        if(redef!=target||!TARGET.equals(name))return null;
+        snapshot.set(bytes.clone());
+        StringBuilder methods=new StringBuilder();
+        new ClassReader(bytes).accept(new ClassVisitor(Opcodes.ASM9) {
+          @Override public MethodVisitor visitMethod(int access,String method,String descriptor,String signature,String[] exceptions) {
+            methods.append(String.format("%04x",access)).append(' ').append(method).append(descriptor).append('\n');
+            return null;
+          }
+        }, ClassReader.SKIP_CODE|ClassReader.SKIP_DEBUG|ClassReader.SKIP_FRAMES);
+        methodDetails.set(methods.toString());
+        return null; // DO NOT ALTER THE TARGET CLASS
+      }
+    };
+    inst.addTransformer(capture,true);
+    try {inst.retransformClasses(target);} finally {inst.removeTransformer(capture);}
+    byte[] bytes=snapshot.get();
+    if(bytes==null)throw new IllegalStateException("JVM did not provide target class bytes");
+    Path output=Path.of(System.getProperty("user.home"),"twstapecolor-live-by-"+ProcessHandle.current().pid()+".class");
+    Files.write(output,bytes);
+    String superName=new ClassReader(bytes).getSuperName();
+    return "DUMP OK: "+output+" ("+bytes.length+" bytes)"+
+      "\nloadedClassCount="+matches+
+      "\nclassLoader="+target.getClassLoader()+
+      "\nsuperClass="+superName+
+      "\ngetCellRendererMatches="+methodDetails.get().lines().filter(x->x.contains("getCellRenderer")).count()+
+      "\nmethods:\n"+methodDetails.get();
+  }
+
+  private static void install(Instrumentation inst) throws Exception {
+    if(injected)return;
+    Class<?> candidate=null;
+    for(Class<?> type:inst.getAllLoadedClasses()) if(type.getName().equals("jtable.basic.by")){candidate=type;break;}
+    if(candidate==null)throw new IllegalStateException("jtable.basic.by is not loaded. Open Time & Sales before attaching.");
+    if(!inst.isModifiableClass(candidate))throw new UnsupportedOperationException("Target table class not modifiable");
+    targetClass=candidate;
+    final Class<?> chosenTarget=candidate;
+    transformFailure.set(null);
+    transformer=new ClassFileTransformer(){
+      @Override public byte[] transform(ClassLoader loader,String name,Class<?> redef,ProtectionDomain domain,byte[] bytes) {
+        if(!TARGET.equals(name)||redef!=chosenTarget)return null;
+        try {
+        ClassReader cr=new ClassReader(bytes);
+        // TWS uses its own class loader; ASM must resolve frame types through that loader.
+        ClassWriter cw=new ClassWriter(cr,ClassWriter.COMPUTE_MAXS){
+          @Override protected String getCommonSuperClass(String a,String b){
+            try {
+              ClassLoader cl=loader!=null?loader:ClassLoader.getPlatformClassLoader();
+              Class<?> x=Class.forName(a.replace('/','.'),false,cl);
+              Class<?> y=Class.forName(b.replace('/','.'),false,cl);
+              if(x.isAssignableFrom(y))return a;
+              if(y.isAssignableFrom(x))return b;
+              if(x.isInterface()||y.isInterface())return "java/lang/Object";
+              do {x=x.getSuperclass();} while(x!=null&&!x.isAssignableFrom(y));
+              return x==null?"java/lang/Object":x.getName().replace('.','/');
+            }catch(ClassNotFoundException | LinkageError ex){
+              throw new IllegalStateException("Cannot compute bytecode frames for "+a+" and "+b+" in TWS class loader",ex);
+            }
+          }
+        };
+        final int[] count={0};
+        cr.accept(new ClassVisitor(Opcodes.ASM9,cw){
+          @Override public MethodVisitor visitMethod(int flags,String n,String desc,String sig,String[] exceptions){
+            MethodVisitor mv=super.visitMethod(flags,n,desc,sig,exceptions);
+            if(n.equals("getCellRenderer")&&desc.equals("(II)Ljavax/swing/table/TableCellRenderer;")){
+              count[0]++;
+              return new MethodVisitor(Opcodes.ASM9,mv){
+                @Override public void visitInsn(int opcode){
+                  if(opcode==Opcodes.ARETURN){
+                    // The target's StackMapTable marks slots 1 and 2 dead at the return.
+                    // Never ILOAD those arguments here: this was the VerifyError trigger.
+                    super.visitVarInsn(Opcodes.ALOAD,0);
+                    super.visitMethodInsn(Opcodes.INVOKESTATIC,"twstapecolor/HookV0310","wrap","(Ljavax/swing/table/TableCellRenderer;Ljava/lang/Object;)Ljavax/swing/table/TableCellRenderer;",false);
+                  }
+                  super.visitInsn(opcode);
+                }
+              };
+            }
+            return mv;
+          }
+        },0);
+        if(count[0]!=1)throw new IllegalStateException("Expected getCellRenderer method once, found "+count[0]);
+        return cw.toByteArray();
+        } catch(Throwable failure) {
+          transformFailure.set(failure);
+          // Instrumentation may suppress transformer exceptions: retain the real cause.
+          return null;
+        }
+      }
+    };
+    inst.addTransformer(transformer,true);
+    try {
+      inst.retransformClasses(candidate);
+      Throwable failure=transformFailure.get();
+      if(failure!=null)throw new IllegalStateException("Bytecode transformation failed; TWS class was left unchanged",failure);
+      injected=true;
+    } catch(Throwable error) {
+      inst.removeTransformer(transformer);transformer=null;targetClass=null;
+      Throwable failure=transformFailure.get();
+      if(failure!=null && failure!=error)error.addSuppressed(failure);
+      throw error;
+    }
+  }
+
+  private static Color parseHexColor(String hex) {
+    if(!hex.matches("#[0-9a-fA-F]{6}")) throw new IllegalArgumentException("Color must be #RRGGBB");
+    return new Color(Integer.parseInt(hex.substring(1),16));
+  }
+  private static String hex(Color c){return String.format("#%06X",c.getRGB()&0xffffff);}
+  private static String diagnosticReport(){
+    StringBuilder sb=new StringBuilder("Probe seen="+probeSeen+" stored="+probeStored+" max="+MAX_SAMPLES+"\n");
+    for(String line:samples)sb.append(line).append('\n');
+    return sb.toString();
+  }
+  private static void recordProbe(JTable table,Object value,Component component,TableCellRenderer delegate,int row,int col,boolean selected){
+    // Keep instrumentation on the EDT fast; capture only the first bounded number of values.
+    probeSeen.incrementAndGet();
+    long slot=probeStored.getAndIncrement();
+    if(slot>=MAX_SAMPLES)return;
+    try {
+      int modelCol=table.convertColumnIndexToModel(col);
+      StringBuilder sb=new StringBuilder("row=").append(row).append(" col=").append(col).append(" modelCol=").append(modelCol)
+        .append(" selected=").append(selected).append(" column=").append(shortText(table.getColumnName(col)))
+        .append(" table=").append(table.getClass().getName()).append(" model=").append(table.getModel().getClass().getName())
+        .append(" valueType=").append(className(value)).append(" value=").append(shortText(value))
+        .append(" renderer=").append(className(delegate)).append(" comp=").append(className(component))
+        .append(" bg=").append(rgb(component.getBackground())).append(" fg=").append(rgb(component.getForeground()));
+      appendComponent(sb,component,0);
+      samples.add(sb.toString());
+    }catch(Throwable e){samples.add("probeError="+e.getClass().getName()+":"+shortText(e.getMessage()));}
+  }
+  private static void appendComponent(StringBuilder sb,Component c,int depth){
+    if(depth>2)return;
+    if(c instanceof JLabel l){sb.append(" label=").append(shortText(l.getText()));appendIcon(sb,l.getIcon());}
+    if(c instanceof AbstractButton b){sb.append(" button=").append(shortText(b.getText()));appendIcon(sb,b.getIcon());}
+    if(c instanceof JComponent j){sb.append(" opaque=").append(j.isOpaque());
+      for(String key:new String[]{"PROPERTY_NAME_COLOR_TAG","colorTag","direction","tradeDirection","arrow","icon"}){
+        Object v=j.getClientProperty(key);if(v!=null)sb.append(" client[").append(key).append("]=").append(className(v)).append(':').append(shortText(v));
+      }
+    }
+    if(c instanceof Container container){int n=Math.min(container.getComponentCount(),5);for(int i=0;i<n;i++){
+      Component child=container.getComponent(i);sb.append(" child").append(depth).append('[').append(i).append("]=").append(className(child));appendComponent(sb,child,depth+1);
+    }}
+  }
+  private static void appendIcon(StringBuilder sb,Icon icon){if(icon!=null)sb.append(" icon=").append(className(icon)).append("[").append(icon.getIconWidth()).append('x').append(icon.getIconHeight()).append(']');}
+  private static String className(Object o){return o==null?"null":o.getClass().getName();}
+  private static String rgb(Color c){return c==null?"null":String.format("#%08X",c.getRGB());}
+  private static String shortText(Object o){if(o==null)return "null";
+    String x;try{x=String.valueOf(o);}catch(Throwable e){return "<toString-error>";}
+    x=x.replaceAll("[\\r\\n\\t]"," ");return x.length()>80?x.substring(0,80)+"...":x;
+  }
+
+  private static String detach(){
+    if(!injected)return "No active bytecode hook.";
+    try{
+      instrumentation.removeTransformer(transformer);
+      instrumentation.retransformClasses(targetClass);
+      injected=false;transformer=null;targetClass=null;
+      return "Original getCellRenderer bytecode restored.";
+    }catch(Throwable error){return "WARNING: hook restoration failed: "+error+". Restart TWS to clear the hook.";}
+  }
+  // Called for every generic TWS table's renderer selection: extremely cheap guard for all non-tape tables.
+  public static TableCellRenderer wrap(TableCellRenderer original,Object receiver){
+    if(Boolean.TRUE.equals(resolvingDirection.get()))return original;
+    if(original instanceof TapeRenderer prior)original=prior.delegate;
+    if(!(receiver instanceof JTable table)||!(enabled||probeMode)||original==null||!table.getClass().getName().equals("feature.tape.ui.aN")||!MODELS.contains(table.getModel().getClass().getName()))return original;
+    rendererSelections.incrementAndGet();
+    return new TapeRenderer(original);
+  }
+  private static final class TapeRenderer implements TableCellRenderer {
+    private final TableCellRenderer delegate;
+    private Component lastTinted;
+    private Color priorBackground;
+    private boolean priorOpaque;
+    TapeRenderer(TableCellRenderer r){delegate=r;}
+    @Override public Component getTableCellRendererComponent(JTable table,Object value,boolean selected,boolean focus,int row,int col){
+      renderCalls.incrementAndGet();
+      // Swing renderers reuse components. Never let our previous row's tint bleed into the next row.
+      if(lastTinted!=null){
+        lastTinted.setBackground(priorBackground);
+        if(lastTinted instanceof JComponent jc)jc.setOpaque(priorOpaque);
+        lastTinted=null;
+      }
+      // Fail closed if a third-party/older wrapper delegates back into us.
+      if(Boolean.TRUE.equals(rendering.get()))return delegate.getTableCellRendererComponent(table,value,selected,focus,row,col);
+      Component comp;
+      rendering.set(true);
+      try {comp=delegate.getTableCellRendererComponent(table,value,selected,focus,row,col);}
+      finally {rendering.remove();}
+      if(probeMode) {recordProbe(table,value,comp,delegate,row,col,selected);return comp;}
+      if(!enabled||selected||!table.getClass().getName().equals("feature.tape.ui.aN"))return comp;
+      int direction=0;
+      if(visualTest)direction=(row&1)==0?1:-1;
+      else direction=directionForRow(table,comp,row,col);
+      if(direction==0){neutralCalls.incrementAndGet();return comp;}
+      Color tint=direction>0?askColor:bidColor;
+      priorBackground=comp.getBackground();
+      priorOpaque=comp instanceof JComponent jc && jc.isOpaque();
+      lastTinted=comp;
+      comp.setBackground(tint);
+      if(comp instanceof JComponent jc)jc.setOpaque(true);
+      if(direction>0)greenCalls.incrementAndGet();else redCalls.incrementAndGet();
+      paintCalls.incrementAndGet();
+      return comp;
+    }
+    /** Find the native direction tag in any visible renderer, independent of
+     * column names, ordering and the number of columns. Unknown/conflicting
+     * directions deliberately do not color the row.
+     */
+    private static int directionForRow(JTable table,Component rendered,int row,int col){
+      if(Boolean.TRUE.equals(resolvingDirection.get()))return 0;
+      resolvingDirection.set(true);
+      try {
+        int direction=0;
+        for(int i=0;i<table.getColumnCount();i++){
+          Component cell;
+          if(i==col)cell=rendered;
+          else {
+            TableCellRenderer candidate=table.getCellRenderer(row,i);
+            if(candidate instanceof TapeRenderer wrapped)candidate=wrapped.delegate;
+            Object value=table.getValueAt(row,i);
+            cell=candidate.getTableCellRendererComponent(table,value,false,false,row,i);
+          }
+          // Only this known TWS price renderer contains the native direction tag.
+          if(!(cell instanceof JComponent jc) ||
+             !cell.getClass().getName().equals("jcolumn.MaxColumnWidthPriceTextRenderer"))continue;
+          int found=ColorTagDetector.detect(jc);
+          if(found==0)continue;
+          if(direction!=0 && direction!=found)return 0;
+          direction=found;
+        }
+        return direction;
+      }catch(RuntimeException ex){return 0;}
+      finally {resolvingDirection.remove();}
+    }
+
+  }
+}
