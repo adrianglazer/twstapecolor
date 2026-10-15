@@ -12,7 +12,7 @@ import javax.swing.table.*;
 import org.objectweb.asm.*;
 
 /** Injects one method-exit hook into TWS's generic renderer selector; fails closed for non-tape tables. */
-public final class HookV0310 {
+public final class HookV0311 {
   private static final String TARGET="jtable/basic/by";
   private static final Set<String> MODELS=Set.of("feature.tape.ui.aT","feature.tape.data.k");
   private static volatile Color askColor=new Color(24,79,49), bidColor=new Color(102,38,42);
@@ -25,8 +25,7 @@ public final class HookV0310 {
   private static Instrumentation instrumentation;
   private static ClassFileTransformer transformer;
   private static final AtomicReference<Throwable> transformFailure=new AtomicReference<>();
-  // Renderer lookup during direction detection must not be wrapped recursively.
-  private static final ThreadLocal<Boolean> resolvingDirection=ThreadLocal.withInitial(()->false);
+  // Guard against a delegate reentering the rendering hook.
   private static final ThreadLocal<Boolean> rendering=ThreadLocal.withInitial(()->false);
   private static final AtomicLong rendererSelections=new AtomicLong(), renderCalls=new AtomicLong(), paintCalls=new AtomicLong(), greenCalls=new AtomicLong(), redCalls=new AtomicLong(), neutralCalls=new AtomicLong();
 
@@ -39,6 +38,7 @@ public final class HookV0310 {
       case "probe": {
         if(!inst.isRetransformClassesSupported())throw new UnsupportedOperationException("Retransformation not supported");
         install(inst); enabled=false;visualTest=false;probeMode=true;
+        onEdt(TapeView::restoreAll);
         samples.clear();probeSeen.set(0);probeStored.set(0);
         SwingUtilities.invokeLater(()->{for(Window w:Window.getWindows())w.repaint();});
         return "Probe active (NO COLOR CHANGES). Wait for tape activity, then run report --pid. Samples capped at "+MAX_SAMPLES;
@@ -47,6 +47,7 @@ public final class HookV0310 {
       case "dump": return dumpLoadedClass(inst);
       case "stop": {
         enabled=false;visualTest=false;probeMode=false;
+        onEdt(TapeView::restoreAll);
         String restored=detach();
         return "Disabled. "+restored+" Reopen or restart TWS if the interface behaves unexpectedly.";
       }
@@ -59,7 +60,7 @@ public final class HookV0310 {
         install(inst);probeMode=false;
         visualTest=action.equals("test-paint");enabled=true;
         SwingUtilities.invokeLater(()->{for(Window w:Window.getWindows())w.repaint();});
-        return (visualTest?"VISUAL TEST (NOT TRADE CLASSIFICATION): alternating green/red tape rows. ":"Directional full-row coloring: UP (ask)="+hex(askColor)+" DOWN (bid)="+hex(bidColor)+"; neutral untouched. ")+"Hook installed="+injected+". Use status to inspect counters, stop to restore.";
+        return (visualTest?"VISUAL TEST (NOT TRADE CLASSIFICATION): alternating green/red tape rows. ":"NBBO full-row coloring: ask="+hex(askColor)+" bid="+hex(bidColor)+"; neutral untouched; newest 50 trades visible. ")+"Hook installed="+injected+". Use status to inspect counters, stop to restore.";
       }
       default:throw new IllegalArgumentException(cmd);
     }
@@ -153,7 +154,7 @@ public final class HookV0310 {
                     // The target's StackMapTable marks slots 1 and 2 dead at the return.
                     // Never ILOAD those arguments here: this was the VerifyError trigger.
                     super.visitVarInsn(Opcodes.ALOAD,0);
-                    super.visitMethodInsn(Opcodes.INVOKESTATIC,"twstapecolor/HookV0310","wrap","(Ljavax/swing/table/TableCellRenderer;Ljava/lang/Object;)Ljavax/swing/table/TableCellRenderer;",false);
+                    super.visitMethodInsn(Opcodes.INVOKESTATIC,"twstapecolor/HookV0311","wrap","(Ljavax/swing/table/TableCellRenderer;Ljava/lang/Object;)Ljavax/swing/table/TableCellRenderer;",false);
                   }
                   super.visitInsn(opcode);
                 }
@@ -242,80 +243,37 @@ public final class HookV0310 {
       return "Original getCellRenderer bytecode restored.";
     }catch(Throwable error){return "WARNING: hook restoration failed: "+error+". Restart TWS to clear the hook.";}
   }
-  // Called for every generic TWS table's renderer selection: extremely cheap guard for all non-tape tables.
+  private static void onEdt(Runnable task) throws Exception {
+    if(SwingUtilities.isEventDispatchThread())task.run();
+    else SwingUtilities.invokeAndWait(task);
+  }
+  // No row/column argument loads are added to the target bytecode.
   public static TableCellRenderer wrap(TableCellRenderer original,Object receiver){
-    if(Boolean.TRUE.equals(resolvingDirection.get()))return original;
-    if(original instanceof TapeRenderer prior)original=prior.delegate;
+    while(original instanceof TapeRenderer prior)original=prior.delegate;
     if(!(receiver instanceof JTable table)||!(enabled||probeMode)||original==null||!table.getClass().getName().equals("feature.tape.ui.aN")||!MODELS.contains(table.getModel().getClass().getName()))return original;
+    if(enabled)TapeView.schedule(table,()->enabled);
     rendererSelections.incrementAndGet();
     return new TapeRenderer(original);
   }
   private static final class TapeRenderer implements TableCellRenderer {
     private final TableCellRenderer delegate;
-    private Component lastTinted;
-    private Color priorBackground;
-    private boolean priorOpaque;
     TapeRenderer(TableCellRenderer r){delegate=r;}
     @Override public Component getTableCellRendererComponent(JTable table,Object value,boolean selected,boolean focus,int row,int col){
       renderCalls.incrementAndGet();
-      // Swing renderers reuse components. Never let our previous row's tint bleed into the next row.
-      if(lastTinted!=null){
-        lastTinted.setBackground(priorBackground);
-        if(lastTinted instanceof JComponent jc)jc.setOpaque(priorOpaque);
-        lastTinted=null;
-      }
-      // Fail closed if a third-party/older wrapper delegates back into us.
       if(Boolean.TRUE.equals(rendering.get()))return delegate.getTableCellRendererComponent(table,value,selected,focus,row,col);
       Component comp;
       rendering.set(true);
       try {comp=delegate.getTableCellRendererComponent(table,value,selected,focus,row,col);}
       finally {rendering.remove();}
       if(probeMode) {recordProbe(table,value,comp,delegate,row,col,selected);return comp;}
-      if(!enabled||selected||!table.getClass().getName().equals("feature.tape.ui.aN"))return comp;
-      int direction=0;
-      if(visualTest)direction=(row&1)==0?1:-1;
-      else direction=directionForRow(table,comp,row,col);
+      if(!enabled||selected)return comp;
+      TapeView.Print print=TapeView.print(table,row);
+      int direction=visualTest?((row&1)==0?1:-1):print.direction();
       if(direction==0){neutralCalls.incrementAndGet();return comp;}
       Color tint=direction>0?askColor:bidColor;
-      priorBackground=comp.getBackground();
-      priorOpaque=comp instanceof JComponent jc && jc.isOpaque();
-      lastTinted=comp;
-      comp.setBackground(tint);
-      if(comp instanceof JComponent jc)jc.setOpaque(true);
       if(direction>0)greenCalls.incrementAndGet();else redCalls.incrementAndGet();
       paintCalls.incrementAndGet();
-      return comp;
+      return new IsolatedTintRenderer(comp,tint,visualTest?1:print.intensity());
     }
-    /** Find the native direction tag in any visible renderer, independent of
-     * column names, ordering and the number of columns. Unknown/conflicting
-     * directions deliberately do not color the row.
-     */
-    private static int directionForRow(JTable table,Component rendered,int row,int col){
-      if(Boolean.TRUE.equals(resolvingDirection.get()))return 0;
-      resolvingDirection.set(true);
-      try {
-        int direction=0;
-        for(int i=0;i<table.getColumnCount();i++){
-          Component cell;
-          if(i==col)cell=rendered;
-          else {
-            TableCellRenderer candidate=table.getCellRenderer(row,i);
-            if(candidate instanceof TapeRenderer wrapped)candidate=wrapped.delegate;
-            Object value=table.getValueAt(row,i);
-            cell=candidate.getTableCellRendererComponent(table,value,false,false,row,i);
-          }
-          // Only this known TWS price renderer contains the native direction tag.
-          if(!(cell instanceof JComponent jc) ||
-             !cell.getClass().getName().equals("jcolumn.MaxColumnWidthPriceTextRenderer"))continue;
-          int found=ColorTagDetector.detect(jc);
-          if(found==0)continue;
-          if(direction!=0 && direction!=found)return 0;
-          direction=found;
-        }
-        return direction;
-      }catch(RuntimeException ex){return 0;}
-      finally {resolvingDirection.remove();}
-    }
-
   }
 }

@@ -1,119 +1,82 @@
-![Screenshot](https://github.com/adrianglazer/twstapecolor/blob/main/twstapecolor.png)
+![Screenshot of the earlier native-tag version](https://github.com/adrianglazer/twstapecolor/blob/main/twstapecolor.png)
 
-# twstapecolor v0.3.10
+# twstapecolor v0.3.11
 
-Unofficial, open-source-ready experimental **Time & Sales row-background coloring** for **Interactive Brokers Trader Workstation (TWS)** on Linux. This project is not affiliated with, supported by, or endorsed by Interactive Brokers. It does **not** place trades, transmit orders, or use account credentials.
+Experimental Time & Sales **row backgrounds** for Interactive Brokers Trader Workstation (TWS) on Linux. Unofficial; not affiliated with or supported by Interactive Brokers. It does not place orders or use account credentials.
 
-## What it does
+## Behavior
 
-While TWS is running, `twstapecolor` attaches a Java agent using the JDK Attach API and **retransforms one already-loaded TWS class in the JVM's memory**: `jtable.basic.by`, method `getCellRenderer(int,int)`. The hook wraps a Swing table-cell renderer only for known Time & Sales tables (`feature.tape.ui.aN` with `feature.tape.ui.aT` or `feature.tape.data.k` models).
+- Show the newest **50 trades** available in the retained TWS event model, in model order (newest first). A trade requires both a positive numeric **Last** and **Last Size** (or **Size**). Empty, zero, nonnumeric and nonfinite values are hidden.
+- Hide quote-only and incomplete rows **in the table view**. All events remain in the model. The tool cannot recover older trades that TWS has already dropped; increase TWS's event retention if fewer than 50 trades are retained.
+- Classify each trade using the **nearest preceding NBBO-bearing event** in model event order. With newest-first rows, earlier events have larger model indices. Timestamps are not sorted or used to break ties. A newer quote, or a quote in the trade's own event, cannot classify that trade.
+- At or above the preceding ask: green (`#184F31`). At or below the preceding bid: red (`#66262A`). Inside the spread, missing quotes, and invalid, partial, locked or crossed quotes: original TWS appearance. Invalid quotes replace earlier valid quotes rather than silently reusing stale data.
+- Tint every visible column. Smaller trades have softer backgrounds; the largest of the visible trades receives the configured color. Intensity is `0.35 + 0.65 * log(1 + size) / log(1 + largest visible size)`, blended with each renderer's original background. The scale updates as trades enter or leave the visible set.
+- Preserve selected-cell appearance. `test-paint` uses alternating full-intensity colors solely for diagnosis.
 
-For any visible price-renderer column, it reads the renderer's `PROPERTY_NAME_COLOR_TAG` client property (`com.ib.chart.timesales.columns.ColoredColumn$ColorTag`). It then applies the same classification to **all visible columns of that row** (including Last, Size, Time, NBBO and Midpoint when visible):
+This version replaces the old UP/DOWN renderer-tag classifier with an event-based NBBO comparison. It is a price-relative classification, not a verified identification of the trade aggressor.
 
-| Native TWS tag                | Meaning in this tool        | Row background                          |
-| ----------------------------- | --------------------------- | --------------------------------------- |
-| `UP`                          | Ask-side / up-arrow print   | Dark green `#184F31`                    |
-| `DOWN`                        | Bid-side / down-arrow print | Dark red `#66262A`                      |
-| `NO_CHANGE` or absent/unknown | Neutral/unknown             | Unchanged, original TWS renderer colors |
+### Supported data and view layout
 
-This **follows TWS's own indicator**, not an independent determination of trade aggressor or a bid/ask quote calculation. Whether UP/DOWN means a true executed-at-ask/bid trade depends on TWS's native semantics and the data feed. Selected cells are left unchanged. No colors are applied to unrecognized TWS tables.
+Only `feature.tape.ui.aN` tables with `feature.tape.ui.aT` or `feature.tape.data.k` models are targeted. Model column names are matched ignoring case, spaces and punctuation: `Last`, `Last Size`/`Size`, and either `Bid`/`Ask` (also `NBBO Bid`/`NBBO Ask`) or `NBBO`. Hidden or reordered view columns do not affect classification. Model events must be newest first.
 
-**Implementation detail:** Swing renderers are reused. The hook checks native color tags on visible price renderer cells for the same row, without depending on a fixed column name or order. If conflicting directional tags are present, the row stays unchanged. If all direction-bearing columns are hidden, rows stay unchanged rather than guessing. The hook is defensive and defaults to the original appearance on missing or unexpected state. It adds some per-cell overhead.
+Bid/ask cells accept positive numbers or decimal numeric text (commas are treated as thousands separators). A combined NBBO cell accepts plain decimal prices separated by `x`, `×`, `/`, or a spaced hyphen, for example `100.00 x 100.05`. Size-decorated strings, currency symbols, localized decimal commas and opaque TWS value objects are not decoded. Unrecognized NBBO text leaves trades neutral. Partial bid/ask updates invalidate the snapshot; this tool expects complete NBBO events and does not reconstruct independent bid/ask deltas.
 
-## Requirements
+The filter installs a private Swing row sorter only when the table has no existing sorter and its required trade columns are recognized. **An application-owned sorter is preserved; filtering and NBBO coloring are skipped for that table.** Unknown column names are also left unchanged. Use `probe`/`report` to inspect the actual TWS values if the tape remains unfiltered or neutral. Supporting additional TWS formats requires a captured example and a parser test.
 
-- Linux with a running desktop TWS instance (validated by a user on TWS 10.51.1c; other builds untested).
-- Java **JDK 21+** with `java`, `javac`, `jar` and `jcmd` available; attach support and same-user permission for the TWS process.
-- Bash and `unzip`; ASM 9.8 is bundled in `lib/asm-9.8.jar`.
-- A paper-trading TWS session for initial testing, with a visible Time & Sales window.
+### Renderer and instrumentation lifecycle
+
+The agent retransforms only `jtable.basic.by.getCellRenderer(int,int)` in JVM memory. The exit hook loads the returned renderer and `this` only; it never reloads dead row/column arguments, preserving the fix for the original `VerifyError`. Existing stack-map frames are retained.
+
+Renderer wrappers are unwrapped before reuse. Tinting occurs inside an isolated paint call; shared component backgrounds, opacity, parent and bounds are restored in `finally`, including when painting fails. Classification uses cached model data and does not recursively render other cells. Model changes invalidate the snapshot immediately and coalesce a rebuild on the Swing event thread. Quote lookup stops at the event preceding the oldest visible trade instead of scanning all retained history on every paint.
+
+`stop` removes model listeners and the private view filter, then removes the transformer and requests restoration of the original bytecode. Model replacement discards the old view state. A later `start` installs fresh view state. Agent and hook classes have new versioned names to avoid reusing v0.3.10 classes already loaded in TWS.
 
 ## Build and run
 
-Extract the ZIP and enter its `twstapecolor-v0.3.10` directory. Nothing is installed into your TWS directory.
+Requirements: Linux, JDK **21+** (`java`, `javac`, `jar`, `jcmd`), Bash, and `unzip`. The build downloads ASM 9.8 from Maven Central if missing; subsequent builds can run offline.
 
 ```bash
-chmod +x twstapecolor build.sh
 ./build.sh
+./test.sh
 ./twstapecolor --version
-PID=$(jcmd -l | awk '/install4j.jclient.Launcher/ {print $1; exit}')
-echo "TWS PID: $PID"   # check this identifies the right instance
-./twstapecolor start --pid "$PID"
-./twstapecolor status --pid "$PID"
+jcmd -l
+# Choose the correct TWS PID explicitly:
+./twstapecolor start --pid 12345
+./twstapecolor status --pid 12345
+./twstapecolor stop --pid 12345
 ```
 
-**Custom colors** use independent command-line flags. Quote hex colors in the shell so `#` is not interpreted as a comment:
+Before upgrading from an older running agent, **restart TWS completely** to clear stale hooks and renderers. Initially validate in paper trading. Change symbols, reorder/hide columns, scroll, and try `start`, `stop`, `start` while watching the tape. Confirm NBBO parsing and event order on your TWS build before trusting the display.
+
+Custom colors (six-digit hex RGB):
 
 ```bash
-./twstapecolor start --pid "$PID" --ask-color '#006B3C'
-./twstapecolor start --pid "$PID" --bid-color '#8B2025'
-./twstapecolor start --pid "$PID" --ask-color '#006B3C' --bid-color '#8B2025'
+./twstapecolor start --pid 12345 --ask-color '#006B3C' --bid-color '#8B2025'
 ```
 
-Each `start` sets the effective colors (unspecified colors reset to their built-in defaults). Colors must be six-digit hex RGB (`#RRGGBB`). The colors can be updated with another `start` command without restarting TWS. Use `status` to confirm active colors and counters.
+Each `start` resets unspecified colors to the defaults. Run `start` again to change them without restarting TWS.
 
-```bash
-./twstapecolor stop --pid "$PID"
-```
+## Diagnostics and debug opt-in
 
-`stop` removes the agent transformer and requests a retransformation to restore the original `getCellRenderer` implementation. If the process becomes unstable or restoration fails, restart TWS. Starting TWS anew also clears runtime agent changes.
+- `status --pid PID`: installation state, renderer/color counters, and configured colors.
+- `test-paint --pid PID`: alternating green/red diagnostic rows; unrelated to classification.
+- `probe --pid PID`, then `report --pid PID`: bounded renderer metadata and values. Probe mode removes the trade filter and makes no color changes.
+- `dump --pid PID`: deliberately saves in-memory target bytecode to a `.class` file.
 
-## Other commands
+Commands print to the console. Normal commands leave no persistent reports: a short-lived response file is removed after use (a forcibly killed launcher may leave it behind). Add `--debug` to any command to retain `~/twstapecolor-<command>-<pid>-<timestamp>.txt`. Inspect diagnostic data before sharing; it may contain market data and symbol information. `dump` writes its requested file even without debug. The launcher rebuilds the agent JAR before each command.
 
-- `status --pid PID`: enabled state, installation and coloring counters, configured colors.
-- `test-paint --pid PID`: alternating green/red **diagnostic pattern** unrelated to trade classification. Use only to test the paint hook.
-- `probe --pid PID`, then `report --pid PID`: bounded diagnostic captures renderer metadata and values in the home-directory report. Inspect reports before sharing them: they can include market prices, symbol-related information or other UI data.
-- `dump --pid PID`: saves in-memory class bytecode for debugging.
+## Validation and limits
 
-**Clean by default:** `start`, `status`, `stop`, and other commands do not leave report/log files behind. They still print concise results/errors in the terminal. The launcher uses a short-lived temporary response file to communicate with the attached agent and removes it after completion. If the launcher is forcibly killed, an orphaned temp file may remain.
+`./test.sh` compiles the agent and runs headless Swing checks with `-Xverify:all`. Tests cover event ordering, absent/invalid/partial/locked/crossed NBBO, pair parsing, hidden columns, the 50-trade limit, bounded history reads, adaptive intensity, full-cell painting, shared-component restoration (also on exceptions), model updates/replacement, filter removal/restart, selected cells, and non-tape isolation. A synthetic target reproduces the dead row/column argument stack-map frame and loads and executes transformed bytecode. An instrumentation test double verifies transformer installation/removal across stop/start cycles.
 
-To save a persistent per-command diagnostic report, add `--debug` (works with every command, and can be combined with color flags):
+These tests do **not** establish live TWS compatibility. v0.3.11 has not been tested inside TWS. Obfuscated model names, column labels, values, event retention and ordering can change across TWS versions. The repository screenshot shows an earlier native-tag version, not validation of this version. Probe a paper session to confirm the assumptions above. Quote retention is controlled by TWS, so missing historical NBBO leaves older trades neutral.
 
-```bash
-./twstapecolor start --pid "$PID" --debug
-./twstapecolor status --pid "$PID" --debug
-./twstapecolor start --pid "$PID" --ask-color '#006B3C' --bid-color '#8B2025' --debug
-```
+For `VerifyError`, restoration failure, freezes or unexpected UI behavior, stop testing and restart TWS. Report TWS/Java versions and opt-in diagnostic output. If rows remain unfiltered, check required columns and the existing-sorter limitation. If rows are filtered but neutral, check NBBO format, available quote history and event ordering.
 
-`--debug` writes `~/twstapecolor-<command>-<pid>-<timestamp>.txt`. Note that `dump` deliberately writes a `.class` file even without `--debug` because producing that file is the purpose of the command; `report` prints its collected observations to the console by default. Building still creates build artifacts inside the project directory. The launcher rebuilds its agent JAR before each command (this does not alter TWS files).
+## License and liability
 
-## Safety, trust and limitations
+Project code is free and open source under the [MIT License](LICENSE). Retain its copyright and license notice when redistributing. The MIT license and its warranty/liability disclaimer are unchanged.
 
-**It does not patch, replace or overwrite TWS JARs, executables, installation files or configuration files.** Changes to the application code are **runtime-only in the currently running JVM memory**, and `stop` attempts to restore the original bytecode. This is different from saying the tool cannot affect TWS: a Java agent executes code **inside TWS's process** and modifies execution of a Swing rendering method. Bugs, TWS updates, extra rendering work, class-loader differences or other agents may cause incorrect colors, freezes, errors, or crashes. Restoration is best-effort; a TWS restart is the reliable way to discard instrumentation.
+Use at your own risk. An attached Java agent runs inside TWS and changes rendering in memory. Bugs or TWS updates may cause incorrect colors, UI freezes, crashes, missed information or trading losses. Installed TWS JARs, executables and configuration files are not overwritten. `stop` restores the bytecode on a best-effort basis; restarting TWS reliably clears runtime changes. Read the source and test in paper trading. Colors are not investment advice, verified executions, or a guarantee of trade direction.
 
-Treat this as **experimental software**, not a safety-certified or production-supported TWS extension. Test in paper trading; do not rely on the colors for order execution or as verified buy/sell signals. Close or restart TWS if anything behaves unexpectedly. The agent does not intentionally interact with orders or accounts, but it does have the technical privileges of the TWS process. **Read the source before running third-party instrumentation.**
-
-The previous v0.3.6 version was confirmed in a live TWS session to recognize UP/DOWN tags and color price-cell backgrounds. **v0.3.10's full-row implementation has been compiled and locally checked but requires testing against the live TWS renderer**, especially for rapid updates, column reordering, scrolling, and changing symbols.
-
-## Troubleshooting
-
-- `jcmd` returns no launcher PID: ensure the TWS JVM is running and use `jcmd -l` to identify it explicitly.
-- `VerifyError`: the TWS bytecode may have changed. Run `stop`, restart TWS if necessary, and report your TWS and Java versions and the terminal error output (use `--debug` to retain a report). Do not repeatedly inject on a production session.
-- `injected=true` but no tint: open Time & Sales and inspect `status`. Native tags must be present; unknowns are intentionally unchanged.
-- Only some columns tinted: verify renderer support and capture a screenshot and status report.
-- `stop` reports restoration failure: restart TWS.
-
-## License, free use and liability disclaimer
-
-**twstapecolor is free and open source under the [MIT License](LICENSE).** You may use it personally or commercially, fork it, modify it, and redistribute copies, including modified versions, subject to retaining the copyright and license notice. There is no fee, no warranty, and no promise of support.
-
-**USE AT YOUR OWN RISK.** This is an unofficial third-party tool that attaches to a running Trader Workstation (TWS) JVM and changes rendering behavior in memory. It is not affiliated with, endorsed by, or supported by Interactive Brokers. It does not alter the installed TWS executables or JARs, but injected code **does run inside the TWS process**. Defects or incompatibilities can cause incorrect visual signals, UI freezes, missed information, crashes, or other losses. `stop` makes a best-effort restoration; restarting TWS is the reliable fallback.
-
-**No trading or financial guarantee.** Colors merely reflect the TWS renderer's UP/DOWN/NO_CHANGE direction tags; they are not verified executions, investment advice, or a recommendation to trade. Users are solely responsible for how they use the tool, for their trading decisions, for monitoring the application, and for any resulting gains or losses. To the maximum extent permitted by applicable law, the authors and copyright holders disclaim warranties and liability for **direct, indirect, incidental, consequential, special, or other damages, including trading losses, lost profits, data loss, trading interruptions, and missed trades**, arising from use, inability to use, or malfunction of the software. Nothing here excludes liability that applicable law does not allow to be excluded. See the full [MIT License](LICENSE) for the binding license terms.
-
-**Third-party software:** This distribution bundles ASM 9.8, which is separately licensed under BSD-3-Clause; the MIT license above applies to the twstapecolor project code, **not** to ASM. Comply with ASM's copyright and license conditions when redistributing its JAR (see https://asm.ow2.io/license.html). No proprietary TWS class files are included.
-
-Before publishing, the project maintainer should confirm or replace the copyright holder name in `LICENSE` and include any required third-party license notices in the release package.
-
-## Restart lifecycle (v0.3.10)
-
-This version adds a guard against recursively wrapping renderers while looking up
-arrow direction in other columns. The former full-row detector called
-`getCellRenderer()` from inside renderer execution, and this could lead to
-nested wrappers or excessive renderer work across stop/start cycles.
-
-**Before testing this version, restart TWS completely** to clear already-loaded
-agent versions and any stale renderer instances. First try `start`, `stop`,
-`start`, `status`, then repeatedly change symbols and scroll the tape.
-If TWS freezes, terminate the test and restart TWS. This is experimental
-in-process instrumentation; it cannot guarantee application safety.
-Do not test on a live-trading account.
+ASM 9.8 is third-party software under BSD-3-Clause, separately from this project's MIT license. Its redistribution conditions apply to the bundled dependency; see the [ASM license](https://asm.ow2.io/license.html). No proprietary TWS class files are distributed; tests use synthetic fixtures.
