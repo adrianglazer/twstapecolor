@@ -6,13 +6,11 @@ Experimental Time & Sales **row backgrounds** for Interactive Brokers Trader Wor
 
 Actual screen captures from TWS 10.51.1c on 2026-10-15, with only **Time, Last and Size** visible.
 
-| Native TWS — agent stopped | twstapecolor v0.3.14 — enabled |
-| :---: | :---: |
-| ![Native TWS tape with no row background coloring](docs/screenshots/tws-native-v0.3.14.png) | ![TWS tape with red bid-side and green ask-side full-row backgrounds](docs/screenshots/tws-colored-v0.3.14.png) |
+![Before and after: native TWS beside twstapecolor v0.3.14, showing full-row bid/ask backgrounds](twstapecolor.png)
 
 Green marks trades at or above the captured ask; red marks trades at or below the captured bid. Inside-spread and unknown trades keep their native background. Larger trades receive stronger shading across all three columns.
 
-The tape was live, so these captures show different moments and different trades. The images are unaltered, tape-only screen captures; the left image also verifies that `stop` restores the native appearance.
+The tape was live, so these captures show different moments and different trades. The graphic uses the original tape-only captures, enlarged 2× without changing their pixels; the left image also verifies that `stop` restores the native appearance.
 
 ## Behavior
 
