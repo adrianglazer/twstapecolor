@@ -10,12 +10,12 @@ import javax.swing.event.TableModelListener;
 import javax.swing.table.*;
 
 /** EDT-owned view of a newest-first event model. Quote rows remain in the model. */
-final class TapeView {
+final class TapeViewV0313 {
   static final int LIMIT=50;
   record Print(int direction,double intensity) {}
   private static final Print UNKNOWN=new Print(0,0);
-  private static final String PENDING=TapeView.class.getName()+".pending";
-  private static final Map<JTable,TapeView> views=new IdentityHashMap<>();
+  private static final String PENDING=TapeViewV0313.class.getName()+".pending";
+  private static final Map<JTable,TapeViewV0313> views=new IdentityHashMap<>();
   private static final Pattern PAIR=Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(?:[xX×/]|\\s+-\\s+)\\s*([0-9]+(?:\\.[0-9]+)?)\\s*$");
   private final JTable table;
   private final TableModel model;
@@ -34,12 +34,12 @@ final class TapeView {
     EventQueue.invokeLater(()->{
       table.putClientProperty(PENDING,null);
       // Preserve an application-owned sorter rather than overriding its behavior.
-      if(!active.getAsBoolean()||views.containsKey(table)||table.getRowSorter()!=null||columns(table.getModel())==null)return;
-      TapeView view=new TapeView(table,active);
+      if(!active.getAsBoolean()||views.containsKey(table)||table.getRowSorter()!=null||(!LiveTapeDataV0313.supports(table.getModel())&&columns(table.getModel())==null))return;
+      TapeViewV0313 view=new TapeViewV0313(table,active);
       views.put(table,view);
     });
   }
-  private TapeView(JTable table,BooleanSupplier active){
+  private TapeViewV0313(JTable table,BooleanSupplier active){
     this.table=table;this.model=table.getModel();this.active=active;
     sorter=new TableRowSorter<>(model);
     for(int i=0;i<model.getColumnCount();i++)sorter.setSortable(i,false);
@@ -67,7 +67,7 @@ final class TapeView {
     table.repaint();
   }
   static Print print(JTable table,int viewRow){
-    TapeView view=views.get(table);
+    TapeViewV0313 view=views.get(table);
     if(view==null||viewRow<0||viewRow>=table.getRowCount())return UNKNOWN;
     return view.prints.getOrDefault(table.convertRowIndexToModel(viewRow),UNKNOWN);
   }
@@ -81,14 +81,14 @@ final class TapeView {
     prints=Map.of();
     table.repaint();
   }
-  static void restoreAll(){for(TapeView view:List.copyOf(views.values()))view.close();}
+  static void restoreAll(){for(TapeViewV0313 view:List.copyOf(views.values()))view.close();}
 
   private static String name(String text){return text.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]","");}
   // Read model columns, including columns hidden in the table view.
   private static int[] columns(TableModel model){
     int last=-1,size=-1,bid=-1,ask=-1,nbbo=-1;
     for(int c=0;c<model.getColumnCount();c++)switch(name(model.getColumnName(c))){
-      case "last" -> last=c;
+      case "last","lastmidpoint" -> last=c;
       case "lastsize" -> size=c;
       case "size" -> {if(size<0)size=c;}
       case "bid","nbbobid" -> bid=c;
@@ -101,14 +101,18 @@ final class TapeView {
     if(value==null)return Double.NaN;
     try {
       double n=value instanceof Number num?num.doubleValue():Double.parseDouble(value.toString().trim().replace(",",""));
-      return Double.isFinite(n)&&n>0?n:Double.NaN;
+      return Double.isFinite(n)&&n>0&&n<Double.MAX_VALUE?n:Double.NaN;
     }catch(NumberFormatException ex){return Double.NaN;}
   }
   static int classify(double last,double bid,double ask){
     if(!Double.isFinite(last)||!Double.isFinite(bid)||!Double.isFinite(ask)||last<=0||bid<=0||ask<=bid)return 0;
-    return last>=ask?1:last<=bid?-1:0;
+    // TWS can encode a decimal quote as 2.3600000000000003 while the trade
+    // arrives as 2.36. Allow only a few floating-point ULPs, not a price tick.
+    double epsilon=4*Math.ulp(Math.max(last,Math.max(bid,ask)));
+    return last>=ask-epsilon?1:last<=bid+epsilon?-1:0;
   }
   static Map<Integer,Print> snapshot(TableModel model){
+    if(LiveTapeDataV0313.supports(model))return nativeSnapshot(model);
     int[] c=columns(model);
     if(c==null)return Map.of();
     // Pick trades before scanning quotes; hidden quote events never consume this budget.
@@ -147,6 +151,22 @@ final class TapeView {
         bid=m.matches()?number(m.group(1)):Double.NaN;
         ask=m.matches()?number(m.group(2)):Double.NaN;
       }
+    }
+    return Map.copyOf(result);
+  }
+  private static Map<Integer,Print> nativeSnapshot(TableModel model){
+    Map<Integer,LiveTapeDataV0313.Trade> trades=new LinkedHashMap<>();
+    double largest=0;
+    for(int row=0;row<model.getRowCount()&&trades.size()<LIMIT;row++){
+      LiveTapeDataV0313.Trade trade=LiveTapeDataV0313.read(model,row);
+      if(trade!=null&&Double.isFinite(trade.last())&&Double.isFinite(trade.size())){
+        trades.put(row,trade);largest=Math.max(largest,trade.size());
+      }
+    }
+    Map<Integer,Print> result=new HashMap<>();
+    for(var entry:trades.entrySet()){
+      var trade=entry.getValue();
+      result.put(entry.getKey(),new Print(classify(trade.last(),trade.bid(),trade.ask()),.35+.65*Math.log1p(trade.size())/Math.log1p(largest)));
     }
     return Map.copyOf(result);
   }

@@ -21,7 +21,7 @@ public final class TapeTest {
       {100,2,null,null},{null,null,100,101},{100.5,5,null,null},
       {null,null,100,101},{101,1,null,null}
     });
-    var p=TapeView.snapshot(m);
+    var p=TapeViewV0313.snapshot(m);
     check(p.size()==4,"quote rows hidden");
     check(p.get(1).direction()==1,"nearest preceding quote, not future quote");
     check(p.get(3).direction()==-1,"bid classification");
@@ -29,33 +29,33 @@ public final class TapeTest {
     check(p.get(7).direction()==0,"missing preceding quote neutral");
     check(p.get(1).intensity()==1,"largest trade full intensity");
     check(p.get(3).intensity()<p.get(1).intensity(),"size adaptive intensity");
-    check(TapeView.classify(100,100,100)==0,"locked market neutral");
-    check(TapeView.classify(100,102,101)==0,"crossed market neutral");
-    check(TapeView.classify(103,100,101)==1,"above ask");
-    check(TapeView.classify(99,100,101)==-1,"below bid");
+    check(TapeViewV0313.classify(100,100,100)==0,"locked market neutral");
+    check(TapeViewV0313.classify(100,102,101)==0,"crossed market neutral");
+    check(TapeViewV0313.classify(103,100,101)==1,"above ask");
+    check(TapeViewV0313.classify(99,100,101)==-1,"below bid");
     for(Object quote:new Object[]{"bad", "100 x 100", "102 x 101", "100 x NaN"}){
       var pair=new DefaultTableModel(new Object[][]{{101,1,null},{null,null,quote},{null,null,"100 x 101"}},new Object[]{"Last","Size","NBBO"});
-      check(TapeView.snapshot(pair).get(0).direction()==0,"invalid quote does not reuse stale NBBO");
+      check(TapeViewV0313.snapshot(pair).get(0).direction()==0,"invalid quote does not reuse stale NBBO");
     }
     for(String quote:new String[]{"100 x 101","100/101","100 × 101","100 - 101"}){
       var pair=new DefaultTableModel(new Object[][]{{101,1,null},{null,null,quote}},new Object[]{"Last","Size","NBBO"});
-      check(TapeView.snapshot(pair).get(0).direction()==1,"NBBO pair parsing");
+      check(TapeViewV0313.snapshot(pair).get(0).direction()==1,"NBBO pair parsing");
     }
     var invalid=model(new Object[][]{{101,null,null,null},{null,1,null,null},{101,0,null,null},{Double.NaN,1,null,null},{101,1,null,null},{null,null,100,null},{null,null,100,101}});
-    check(TapeView.snapshot(invalid).size()==1,"require valid Last and Last Size");
-    check(TapeView.snapshot(invalid).get(4).direction()==0,"partial quote invalidates older complete quote");
+    check(TapeViewV0313.snapshot(invalid).size()==1,"require valid Last and Last Size");
+    check(TapeViewV0313.snapshot(invalid).get(4).direction()==0,"partial quote invalidates older complete quote");
     var simultaneous=model(new Object[][]{{101,1,200,201},{null,null,100,101}});
-    check(TapeView.snapshot(simultaneous).get(0).direction()==1,"same event quote cannot classify own trade");
+    check(TapeViewV0313.snapshot(simultaneous).get(0).direction()==1,"same event quote cannot classify own trade");
     Object[][] many=new Object[2000][4];
     for(int i=0;i<60;i++){many[2*i]=new Object[]{101,i+1,null,null};many[2*i+1]=new Object[]{null,null,100,101};}
     var bounded=new DefaultTableModel(many,new Object[]{"Last","Size","Bid","Ask"}){
       @Override public Object getValueAt(int r,int c){if(r>100)throw new AssertionError("unneeded older history read");return super.getValueAt(r,c);}
     };
-    var limit=TapeView.snapshot(bounded);
+    var limit=TapeViewV0313.snapshot(bounded);
     check(limit.size()==50&&!limit.containsKey(100),"newest 50 trades only");
     check(limit.values().stream().allMatch(x->x.direction()==1),"quotes outside view still classify");
     var reordered=new DefaultTableModel(new Object[][]{{101,null,1},{null,"100 x 101",null}},new Object[]{"LAST","NBBO","Last Size"});
-    check(TapeView.snapshot(reordered).get(0).direction()==1,"model column order independent");
+    check(TapeViewV0313.snapshot(reordered).get(0).direction()==1,"model column order independent");
   }
   private static void paint(){
     JLabel label=new JLabel("print");label.setOpaque(false);label.setBackground(Color.BLACK);label.setForeground(Color.WHITE);
@@ -87,13 +87,13 @@ public final class TapeTest {
       // Hide quote columns; classification uses model data, not visible renderers.
       table.removeColumn(table.getColumnModel().getColumn(3));
       table.removeColumn(table.getColumnModel().getColumn(2));
-      TapeView.schedule(table,()->true);
+      TapeViewV0313.schedule(table,()->true);
     });flush();
     SwingUtilities.invokeAndWait(()->{
       check(table.getRowCount()==50&&table.getModel().getRowCount()==120,"filter preserves all model events");
-      check(TapeView.print(table,0).direction()==1,"hidden quote columns classify");
+      check(TapeViewV0313.print(table,0).direction()==1,"hidden quote columns classify");
       ((DefaultTableModel)table.getModel()).insertRow(0,new Object[]{101,500,null,null});
-      check(TapeView.print(table,0).direction()==0,"invalidates snapshot immediately");
+      check(TapeViewV0313.print(table,0).direction()==0,"invalidates snapshot immediately");
     });flush();
     SwingUtilities.invokeAndWait(()->{
       check(table.getRowCount()==50&&table.getValueAt(0,1).equals(500),"insert updates newest 50");
@@ -101,26 +101,26 @@ public final class TapeTest {
     });flush();
     SwingUtilities.invokeAndWait(()->{
       check(table.getRowCount()==50&&!Objects.equals(table.getValueAt(0,1),500),"updated incomplete row hidden");
-      TapeView.restoreAll();
+      TapeViewV0313.restoreAll();
       check(table.getRowSorter()==null&&table.getRowCount()==121,"stop restores unfiltered view");
-      TapeView.schedule(table,()->true);
+      TapeViewV0313.schedule(table,()->true);
     });flush();
     SwingUtilities.invokeAndWait(()->{
       check(table.getRowCount()==50,"restart reinstalls filter");
       table.setModel(new feature.tape.ui.aT(new Object[][]{{101,1,null,null},{null,null,100,101}}));
       check(table.getRowSorter()==null,"model replacement removes old view");
-      TapeView.schedule(table,()->true);
+      TapeViewV0313.schedule(table,()->true);
     });flush();
     SwingUtilities.invokeAndWait(()->{
       check(table.getRowCount()==1,"replacement model filtered");
-      TapeView.restoreAll();
+      TapeViewV0313.restoreAll();
       var sorter=new TableRowSorter<>(table.getModel());table.setRowSorter(sorter);
-      TapeView.schedule(table,()->true);
+      TapeViewV0313.schedule(table,()->true);
     });flush();
     SwingUtilities.invokeAndWait(()->{
       check(table.getRowCount()==2,"application sorter preserved");
       table.setRowSorter(null);
-      TapeView.schedule(table,()->false);
+      TapeViewV0313.schedule(table,()->false);
     });flush();
     SwingUtilities.invokeAndWait(()->check(table.getRowSorter()==null,"pending task respects stop"));
   }
@@ -139,7 +139,7 @@ public final class TapeTest {
       }
       default -> throw new UnsupportedOperationException(method.getName());
     });
-    HookV0311.command("start|#184F31|#66262A",inst);
+    HookV0313.command("start|#184F31|#66262A",inst);
     byte[] bytes=transformed[0];check(bytes!=null,"transformation emits bytecode");
     // Define and execute with -Xverify:all. The ARETURN frame deliberately has TOP
     // in slots 1 and 2, reproducing the original VerifyError trigger.
@@ -152,10 +152,10 @@ public final class TapeTest {
       var target=new feature.tape.ui.aN(new feature.tape.ui.aT(new Object[][]{{101,1,null,null},{null,null,100,101}}));
       hookTable=target;
       var shared=new DefaultTableCellRenderer();
-      var first=HookV0311.wrap(shared,target);
-      var second=HookV0311.wrap(first,target);
+      var first=HookV0313.wrap(shared,target);
+      var second=HookV0313.wrap(first,target);
       check(first!=second,"unwrap existing renderer before wrapping");
-      check(HookV0311.wrap(shared,new JTable())==shared,"non tape tables untouched");
+      check(HookV0313.wrap(shared,new JTable())==shared,"non tape tables untouched");
       check(second.getTableCellRendererComponent(target,101,true,false,0,0)==shared,"selection unchanged");
     });flush();
     SwingUtilities.invokeAndWait(()->{
@@ -163,17 +163,17 @@ public final class TapeTest {
       var shared=new DefaultTableCellRenderer();
       shared.setBackground(Color.BLACK);
       for(int col=0;col<hookTable.getColumnCount();col++){
-        var wrapped=HookV0311.wrap(shared,hookTable);
+        var wrapped=HookV0313.wrap(shared,hookTable);
         Component rendered=wrapped.getTableCellRendererComponent(hookTable,hookTable.getValueAt(0,col),false,false,0,col);
         check(rendered instanceof IsolatedTintRenderer,"NBBO tint wraps every column");
         check(shared.getBackground().equals(Color.BLACK),"renderer lookup leaves shared colors untouched");
       }
     });
-    HookV0311.command("stop",inst);
+    HookV0313.command("stop",inst);
     SwingUtilities.invokeAndWait(()->check(hookTable.getRowSorter()==null&&hookTable.getRowCount()==2,"stop cleans hook view"));
-    HookV0311.command("start|#184F31|#66262A",inst);
+    HookV0313.command("start|#184F31|#66262A",inst);
     check(installs[0]==2&&removals[0]==1,"restart has one transformer");
-    HookV0311.command("stop",inst);
+    HookV0313.command("stop",inst);
     check(removals[0]==2,"second stop removes transformer");
   }
   private static byte[] deadArgumentFixture(){

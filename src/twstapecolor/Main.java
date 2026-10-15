@@ -5,7 +5,7 @@ import java.time.*;
 import java.time.format.*;
 import java.util.Set;
 public final class Main {
-  static final String VERSION="v0.3.11";
+  static final String VERSION="v0.3.13";
   public static void main(String[] a) throws Exception {
     if(a.length==1 && (a[0].equals("--version")||a[0].equals("version"))){System.out.println("twstapecolor "+VERSION+" (experimental bytecode hook)");return;}
     if(a.length<3 || !a[1].equals("--pid") || !Set.of("test-paint","start","status","stop","dump","probe","report").contains(a[0])) {
@@ -27,14 +27,18 @@ public final class Main {
       if(flag.equals("--ask-color"))ask=value;else bid=value;
     }
     if(!a[2].matches("[1-9][0-9]*"))throw new IllegalArgumentException("Invalid PID");
+    Path jar=Path.of(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+    Path logDir=jar.getParent().getParent().resolve("logs");
+    if(debug)Files.createDirectories(logDir);
     Path out= debug
-      ? Path.of(System.getProperty("user.home"),"twstapecolor-"+a[0]+"-"+a[2]+"-"+LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"))+".txt")
-      : Files.createTempFile("twstapecolor-ipc-", ".tmp");
+      ? logDir.resolve("twstapecolor-"+a[0]+"-"+a[2]+"-"+LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"))+".txt")
+      : Files.createTempFile(jar.getParent(),"twstapecolor-ipc-", ".tmp");
     try {
-      Path jar=Path.of(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+      Path agentJar=jar.resolveSibling("twstapecolor-"+VERSION+".jar");
+      if(!jar.equals(agentJar))Files.copy(jar,agentJar,StandardCopyOption.REPLACE_EXISTING);
       System.out.println("twstapecolor "+VERSION+" | "+a[0]+" | PID="+a[2]);
       VirtualMachine vm=VirtualMachine.attach(a[2]);
-      try{vm.loadAgent(jar.toString(),a[0]+(a[0].equals("start")?"|"+ask+"|"+bid:"")+":"+out);}finally{vm.detach();}
+      try{vm.loadAgent(agentJar.toString(),a[0]+(a[0].equals("start")?"|"+ask+"|"+bid:"")+":"+out);}finally{vm.detach();}
       long until=System.nanoTime()+java.util.concurrent.TimeUnit.SECONDS.toNanos(15);
       while(System.nanoTime()<until){
         if(Files.exists(out)) {

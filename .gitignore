@@ -1,3 +1,8 @@
 build/
 lib/*.jar
 lib/*.tmp
+
+# Local TWS diagnostics, captured bytecode and scratch files
+work/
+logs/
+*.log
