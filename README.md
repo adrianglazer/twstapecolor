@@ -4,19 +4,13 @@ Experimental Time & Sales **row backgrounds** for Interactive Brokers Trader Wor
 
 ## Before and after
 
-Actual screen captures from TWS 10.51.1c on 2026-10-15. Level 2 is on the left; Time & Sales has only **Time, Last and Size** visible on the right.
+Actual screen captures from TWS 10.51.1c on 2026-10-15, with only **Time, Last and Size** visible.
 
-**Native appearance, verified after stop:**
+![Before and after: native TWS beside twstapecolor v0.3.14, showing full-row bid/ask backgrounds](twstapecolor.png)
 
-![Native Level 2 colors and untinted Time and Sales](docs/screenshots/native-v0.3.16.png)
+Green marks trades at or above the captured ask; red marks trades at or below the captured bid. Inside-spread and unknown trades keep their native background. Larger trades receive stronger shading across all three columns.
 
-**v0.3.16 enabled:**
-
-![Level 2 colors preserved beside size-shaded Time and Sales](docs/screenshots/colored-v0.3.16.png)
-
-Green marks trades at or above the captured ask; red marks trades at or below the captured bid. Inside-spread and unknown trades keep their native background. Larger trades receive much stronger shading across all three columns. Level 2 keeps its native price-level colors.
-
-These are unaltered screen crops from different moments in the live session, so trades and quote sizes differ. The [earlier v0.3.14 comparison graphic](twstapecolor.png) remains available for reference.
+The tape was live, so these captures show different moments and different trades. The graphic uses the original tape-only captures, enlarged 2× without changing their pixels; the left image also verifies that `stop` restores the native appearance. This comparison records v0.3.14; v0.3.16 uses the brighter defaults and wider size shading described below.
 
 ## Behavior
 
@@ -102,7 +96,7 @@ For opt-in reproducible live tests, see [tests/live](tests/live/README.md). Norm
 
 `./test.sh` also includes native-shaped null-cell model tests for frozen quote snapshots, instrument isolation, empty notification arrays, missing-value sentinels, historical neutrality, 50-trade limiting, stop cleanup and floating-point quote rounding. All 6,368 automated checks pass with `-Xverify:all`.
 
-Other TWS versions remain untested. Native class names and accessor signatures may change. Retention remains controlled by TWS: in the tested layout its native history model contained 17 trade events, so the tool could show 17 retained trades, capped at 50. It does not manufacture missing history. The comparison above shows v0.3.16 and confirms that native Level 2 colors remain visible.
+Other TWS versions remain untested. Native class names and accessor signatures may change. Retention remains controlled by TWS: in the tested layout its native history model contained 17 trade events, so the tool could show 17 retained trades, capped at 50. It does not manufacture missing history. The tape-only comparison above records v0.3.14. The [v0.3.16 verification report](QA-REPORT-2026-10-15.md) documents the current shades and Level 2 isolation.
 
 For `VerifyError`, restoration failure, freezes or unexpected UI behavior, stop testing and restart TWS. Report TWS/Java versions and opt-in diagnostic output. If rows remain unfiltered, check required columns and the existing-sorter limitation. If rows are filtered but neutral, inspect `feedHooks`, `quoteEvents`, `tradeEvents`, and `dataErrors` in `status`. Newly captured trades require usable bid/ask data; older unobserved trades intentionally stay neutral.
 
