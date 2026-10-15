@@ -33,3 +33,10 @@ These signatures are specific to this TWS build. No proprietary bytecode is comm
 - All 80 automated checks pass under -Xverify:all. Checks include the original dead-argument verifier regression, a TWS-shaped null-value model, future-quote isolation, empty notification arrays, multiple instruments, sentinel handling, decimal rounding, painting/restoration, filtering and restart lifecycle.
 
 The tested native model retained 17 history events. The filter allows up to 50 trades when available; it cannot reconstruct history discarded by TWS. Trades seen before attach remain neutral because their preceding quotes were not captured. Classification reflects locally observed TWS quote/trade delivery order; separate feed delivery does not prove exchange order or trade aggressor identity.
+
+
+## Deeper review: v0.3.14
+
+The initial v0.3.13 stop check verified visible tint removal, but a later bytecode audit found that separate attach commands had replaced the instrumentation instance needed to remove the renderer transformer. Disabled hooks from earlier versions remained installed. v0.3.14 retains the registering owner and checks removal success. The old disabled transformer bodies in the tested JVM were neutralized once; a TWS restart also clears them.
+
+The stronger verification now compares normalized instructions of all three target methods and 42 stable table properties with a clean native baseline. Three cycles matched exactly, including zero remaining agent-call instructions. See [the QA report](QA-REPORT-2026-10-15.md) and [live audit instructions](tests/live/README.md) for the independent trade/pixel measurements and regression coverage.

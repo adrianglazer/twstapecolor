@@ -10,12 +10,12 @@ import javax.swing.event.TableModelListener;
 import javax.swing.table.*;
 
 /** EDT-owned view of a newest-first event model. Quote rows remain in the model. */
-final class TapeViewV0313 {
+final class TapeViewV0314 {
   static final int LIMIT=50;
   record Print(int direction,double intensity) {}
   private static final Print UNKNOWN=new Print(0,0);
-  private static final String PENDING=TapeViewV0313.class.getName()+".pending";
-  private static final Map<JTable,TapeViewV0313> views=new IdentityHashMap<>();
+  private static final String PENDING=TapeViewV0314.class.getName()+".pending";
+  private static final Map<JTable,TapeViewV0314> views=new IdentityHashMap<>();
   private static final Pattern PAIR=Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(?:[xX×/]|\\s+-\\s+)\\s*([0-9]+(?:\\.[0-9]+)?)\\s*$");
   private final JTable table;
   private final TableModel model;
@@ -34,17 +34,19 @@ final class TapeViewV0313 {
     EventQueue.invokeLater(()->{
       table.putClientProperty(PENDING,null);
       // Preserve an application-owned sorter rather than overriding its behavior.
-      if(!active.getAsBoolean()||views.containsKey(table)||table.getRowSorter()!=null||(!LiveTapeDataV0313.supports(table.getModel())&&columns(table.getModel())==null))return;
-      TapeViewV0313 view=new TapeViewV0313(table,active);
+      if(!active.getAsBoolean()||views.containsKey(table)||table.getRowSorter()!=null||(!LiveTapeDataV0314.supports(table.getModel())&&columns(table.getModel())==null))return;
+      TapeViewV0314 view=new TapeViewV0314(table,active);
       views.put(table,view);
     });
   }
-  private TapeViewV0313(JTable table,BooleanSupplier active){
+  private TapeViewV0314(JTable table,BooleanSupplier active){
     this.table=table;this.model=table.getModel();this.active=active;
     sorter=new TableRowSorter<>(model);
     for(int i=0;i<model.getColumnCount();i++)sorter.setSortable(i,false);
     rebuild();
+    Selection selection=Selection.capture(table);
     table.setRowSorter(sorter);
+    selection.restore(table);
     model.addTableModelListener(changes);
     table.addPropertyChangeListener(replacement);
   }
@@ -67,7 +69,7 @@ final class TapeViewV0313 {
     table.repaint();
   }
   static Print print(JTable table,int viewRow){
-    TapeViewV0313 view=views.get(table);
+    TapeViewV0314 view=views.get(table);
     if(view==null||viewRow<0||viewRow>=table.getRowCount())return UNKNOWN;
     return view.prints.getOrDefault(table.convertRowIndexToModel(viewRow),UNKNOWN);
   }
@@ -77,11 +79,40 @@ final class TapeViewV0313 {
     table.removePropertyChangeListener(replacement);
     model.removeTableModelListener(changes);
     views.remove(table);
-    if(table.getRowSorter()==sorter)table.setRowSorter(null);
+    if(table.getRowSorter()==sorter){
+      Selection selection=Selection.capture(table);
+      table.setRowSorter(null);
+      selection.restore(table);
+    }
     prints=Map.of();
     table.repaint();
   }
-  static void restoreAll(){for(TapeViewV0313 view:List.copyOf(views.values()))view.close();}
+  private record Selection(int[] rows,int[] columns,int rowAnchor,int rowLead,int columnAnchor,int columnLead){
+    static int modelRow(JTable table,int row){return row>=0&&row<table.getRowCount()?table.convertRowIndexToModel(row):-1;}
+    static Selection capture(JTable table){
+      return new Selection(java.util.Arrays.stream(table.getSelectedRows()).map(row->modelRow(table,row)).toArray(),table.getSelectedColumns(),
+        modelRow(table,table.getSelectionModel().getAnchorSelectionIndex()),modelRow(table,table.getSelectionModel().getLeadSelectionIndex()),
+        table.getColumnModel().getSelectionModel().getAnchorSelectionIndex(),table.getColumnModel().getSelectionModel().getLeadSelectionIndex());
+    }
+    void restore(JTable table){
+      var rowSelection=table.getSelectionModel();var columnSelection=table.getColumnModel().getSelectionModel();
+      boolean rowsAdjusting=rowSelection.getValueIsAdjusting(),columnsAdjusting=columnSelection.getValueIsAdjusting();
+      rowSelection.setValueIsAdjusting(true);columnSelection.setValueIsAdjusting(true);
+      try{
+        rowSelection.clearSelection();columnSelection.clearSelection();
+        for(int row:rows)if(row>=0&&row<table.getModel().getRowCount()){
+          int view=table.convertRowIndexToView(row);if(view>=0)rowSelection.addSelectionInterval(view,view);
+        }
+        for(int col:columns)if(col>=0&&col<table.getColumnCount())columnSelection.addSelectionInterval(col,col);
+        int anchor=rowAnchor>=0&&rowAnchor<table.getModel().getRowCount()?table.convertRowIndexToView(rowAnchor):-1;
+        int lead=rowLead>=0&&rowLead<table.getModel().getRowCount()?table.convertRowIndexToView(rowLead):-1;
+        rowSelection.setAnchorSelectionIndex(anchor);columnSelection.setAnchorSelectionIndex(columnAnchor);
+        if(rowSelection instanceof DefaultListSelectionModel d)d.moveLeadSelectionIndex(lead);
+        if(columnSelection instanceof DefaultListSelectionModel d)d.moveLeadSelectionIndex(columnLead);
+      }finally{rowSelection.setValueIsAdjusting(rowsAdjusting);columnSelection.setValueIsAdjusting(columnsAdjusting);}
+    }
+  }
+  static void restoreAll(){for(TapeViewV0314 view:List.copyOf(views.values()))view.close();}
 
   private static String name(String text){return text.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]","");}
   // Read model columns, including columns hidden in the table view.
@@ -105,14 +136,14 @@ final class TapeViewV0313 {
     }catch(NumberFormatException ex){return Double.NaN;}
   }
   static int classify(double last,double bid,double ask){
-    if(!Double.isFinite(last)||!Double.isFinite(bid)||!Double.isFinite(ask)||last<=0||bid<=0||ask<=bid)return 0;
+    if(!Double.isFinite(last)||!Double.isFinite(bid)||!Double.isFinite(ask)||last<=0||bid<=0||last==Double.MAX_VALUE||bid==Double.MAX_VALUE||ask==Double.MAX_VALUE||ask<=bid)return 0;
     // TWS can encode a decimal quote as 2.3600000000000003 while the trade
     // arrives as 2.36. Allow only a few floating-point ULPs, not a price tick.
     double epsilon=4*Math.ulp(Math.max(last,Math.max(bid,ask)));
     return last>=ask-epsilon?1:last<=bid+epsilon?-1:0;
   }
   static Map<Integer,Print> snapshot(TableModel model){
-    if(LiveTapeDataV0313.supports(model))return nativeSnapshot(model);
+    if(LiveTapeDataV0314.supports(model))return nativeSnapshot(model);
     int[] c=columns(model);
     if(c==null)return Map.of();
     // Pick trades before scanning quotes; hidden quote events never consume this budget.
@@ -155,10 +186,10 @@ final class TapeViewV0313 {
     return Map.copyOf(result);
   }
   private static Map<Integer,Print> nativeSnapshot(TableModel model){
-    Map<Integer,LiveTapeDataV0313.Trade> trades=new LinkedHashMap<>();
+    Map<Integer,LiveTapeDataV0314.Trade> trades=new LinkedHashMap<>();
     double largest=0;
     for(int row=0;row<model.getRowCount()&&trades.size()<LIMIT;row++){
-      LiveTapeDataV0313.Trade trade=LiveTapeDataV0313.read(model,row);
+      LiveTapeDataV0314.Trade trade=LiveTapeDataV0314.read(model,row);
       if(trade!=null&&Double.isFinite(trade.last())&&Double.isFinite(trade.size())){
         trades.put(row,trade);largest=Math.max(largest,trade.size());
       }

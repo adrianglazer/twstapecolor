@@ -1,4 +1,4 @@
-# twstapecolor v0.3.13
+# twstapecolor v0.3.14
 
 Experimental Time & Sales **row backgrounds** for Interactive Brokers Trader Workstation (TWS) on Linux. Unofficial; not affiliated with or supported by Interactive Brokers. It does not place orders or use account credentials.
 
@@ -6,9 +6,9 @@ Experimental Time & Sales **row backgrounds** for Interactive Brokers Trader Wor
 
 Actual screen captures from TWS 10.51.1c on 2026-10-15, with only **Time, Last and Size** visible.
 
-| Native TWS — agent stopped | twstapecolor v0.3.13 — enabled |
+| Native TWS — agent stopped | twstapecolor v0.3.14 — enabled |
 | :---: | :---: |
-| ![Native TWS tape with no row background coloring](docs/screenshots/tws-native-v0.3.13.png) | ![TWS tape with red bid-side and green ask-side full-row backgrounds](docs/screenshots/tws-colored-v0.3.13.png) |
+| ![Native TWS tape with no row background coloring](docs/screenshots/tws-native-v0.3.14.png) | ![TWS tape with red bid-side and green ask-side full-row backgrounds](docs/screenshots/tws-colored-v0.3.14.png) |
 
 Green marks trades at or above the captured ask; red marks trades at or below the captured bid. Inside-spread and unknown trades keep their native background. Larger trades receive stronger shading across all three columns.
 
@@ -43,7 +43,7 @@ The agent retransforms three narrowly matched methods in JVM memory: the rendere
 
 Renderer wrappers are unwrapped before reuse. Tinting occurs inside an isolated paint call; shared component backgrounds, opacity, parent and bounds are restored in `finally`, including when painting fails. Classification uses captured quote/trade data and does not recursively render other cells. Model changes invalidate the snapshot immediately and coalesce a rebuild on the Swing event thread. Painting never scans quote history. Quote state updates at record notifications, and classification uses the cached quote associated with the trade.
 
-`stop` disables and restores data hooks, removes model listeners and the private view filter, releases captured event state, then removes the renderer transformer and requests restoration of the original bytecode. Model replacement discards the old view state. A later `start` installs fresh view state. Agent, data, view and hook classes have new versioned names to avoid reusing older classes already loaded in TWS.
+`stop` disables and restores data hooks, removes model listeners and the private view filter, releases captured event state, then removes the renderer transformer and requests restoration of the original bytecode. Model replacement discards the old view state. A later `start` installs fresh view state. The registering instrumentation handle is retained across commands; a failed transformer removal is reported as a warning instead of claiming restoration. View installation/removal preserves selection by model row. Stop waits for any in-flight data callback before clearing caches. Agent, data, view and hook classes have new versioned names to avoid reusing older classes already loaded in TWS.
 
 ## Build and run
 
@@ -81,11 +81,16 @@ Commands print to the console. Normal commands leave no persistent reports: a sh
 
 ## Validation and limits
 
+v0.3.14 fixes five issues found during the deeper review: renderer-transformer ownership across separate attach commands, selection loss when adding/removing the filter, stale quotes after loss of the live top record, current-trade cache growth beyond its record limit, and an in-flight callback racing with stop. Failed-start rollback and failed-stop reporting also have regression coverage.
+
+For opt-in reproducible live tests, see [tests/live](tests/live/README.md). Normal `./test.sh` does not attach to TWS.
+
+
 `./test.sh` compiles the agent and runs headless Swing checks with `-Xverify:all`. Tests cover event ordering, absent/invalid/partial/locked/crossed NBBO, pair parsing, hidden columns, the 50-trade limit, bounded history reads, adaptive intensity, full-cell painting, shared-component restoration (also on exceptions), model updates/replacement, filter removal/restart, selected cells, and non-tape isolation. A synthetic target reproduces the dead row/column argument stack-map frame and loads and executes transformed bytecode. An instrumentation test double verifies transformer installation/removal across stop/start cycles.
 
-**Live verification (2026-10-15, TWS 10.51.1c):** attached to the running TWS, confirmed null cell values and native event accessors, and verified live bid/ask prices and quote sizes. Observed both green ask-side and red bid-side full-row backgrounds in actual screen captures of the existing three-column tape, with variable intensity. The final v0.3.13 build captured 83 quote updates and 95 trades in one verification interval, with 807 green and 852 red cell paints and zero data errors. Stop/start restoration was checked separately. Raw diagnostic captures stay in local ignored directories; only the two selected tape-only images above are included in the repository.
+**Live verification (2026-10-15, TWS 10.51.1c):** attached to the running TWS, confirmed null cell values and native event accessors, and verified live bid/ask prices and quote sizes. Observed both green ask-side and red bid-side full-row backgrounds in actual screen captures of the existing three-column tape, with variable intensity. Independent audits compared native quote/trade values and actual background pixels. The v0.3.14 audits matched all 27 live trades and 3,315 colored cells; the earlier baseline matched 93 trades and 2,280 colored cells. A further arrival-book check matched all five sampled quote-price and quote-size snapshots. Three repeated stop/start cycles restored all 42 compared table properties and normalized method fingerprints, with zero remaining agent calls in the three target methods. See the [expanded QA report](QA-REPORT-2026-10-15.md) for counts, fixes and limits. Raw diagnostic captures stay in local ignored directories; only the two selected tape-only images above are included in the repository.
 
-`./test.sh` also includes native-shaped null-cell model tests for frozen quote snapshots, instrument isolation, empty notification arrays, missing-value sentinels, historical neutrality, 50-trade limiting, stop cleanup and floating-point quote rounding. All 80 checks pass with `-Xverify:all`.
+`./test.sh` also includes native-shaped null-cell model tests for frozen quote snapshots, instrument isolation, empty notification arrays, missing-value sentinels, historical neutrality, 50-trade limiting, stop cleanup and floating-point quote rounding. All 6,126 automated checks pass with `-Xverify:all`.
 
 Other TWS versions remain untested. Native class names and accessor signatures may change. Retention remains controlled by TWS: in the tested layout its native history model contained 17 trade events, so the tool could show 17 retained trades, capped at 50. It does not manufacture missing history. The comparison above shows this version running in the tested session.
 
