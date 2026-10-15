@@ -1,8 +1,18 @@
-![Screenshot of the earlier native-tag version](https://github.com/adrianglazer/twstapecolor/blob/main/twstapecolor.png)
-
 # twstapecolor v0.3.13
 
 Experimental Time & Sales **row backgrounds** for Interactive Brokers Trader Workstation (TWS) on Linux. Unofficial; not affiliated with or supported by Interactive Brokers. It does not place orders or use account credentials.
+
+## Before and after
+
+Actual screen captures from TWS 10.51.1c on 2026-10-15, with only **Time, Last and Size** visible.
+
+| Native TWS — agent stopped | twstapecolor v0.3.13 — enabled |
+| :---: | :---: |
+| ![Native TWS tape with no row background coloring](docs/screenshots/tws-native-v0.3.13.png) | ![TWS tape with red bid-side and green ask-side full-row backgrounds](docs/screenshots/tws-colored-v0.3.13.png) |
+
+Green marks trades at or above the captured ask; red marks trades at or below the captured bid. Inside-spread and unknown trades keep their native background. Larger trades receive stronger shading across all three columns.
+
+The tape was live, so these captures show different moments and different trades. The images are unaltered, tape-only screen captures; the left image also verifies that `stop` restores the native appearance.
 
 ## Behavior
 
@@ -73,11 +83,11 @@ Commands print to the console. Normal commands leave no persistent reports: a sh
 
 `./test.sh` compiles the agent and runs headless Swing checks with `-Xverify:all`. Tests cover event ordering, absent/invalid/partial/locked/crossed NBBO, pair parsing, hidden columns, the 50-trade limit, bounded history reads, adaptive intensity, full-cell painting, shared-component restoration (also on exceptions), model updates/replacement, filter removal/restart, selected cells, and non-tape isolation. A synthetic target reproduces the dead row/column argument stack-map frame and loads and executes transformed bytecode. An instrumentation test double verifies transformer installation/removal across stop/start cycles.
 
-**Live verification (2026-10-15, TWS 10.51.1c):** attached to the running TWS, confirmed null cell values and native event accessors, and verified live bid/ask prices and quote sizes. Observed both green ask-side and red bid-side full-row backgrounds in actual screen captures of the existing three-column tape, with variable intensity. The final v0.3.13 build captured 83 quote updates and 95 trades in one verification interval, with 807 green and 852 red cell paints and zero data errors. Stop/start restoration was checked separately. Diagnostic captures are local ignored files, not repository content.
+**Live verification (2026-10-15, TWS 10.51.1c):** attached to the running TWS, confirmed null cell values and native event accessors, and verified live bid/ask prices and quote sizes. Observed both green ask-side and red bid-side full-row backgrounds in actual screen captures of the existing three-column tape, with variable intensity. The final v0.3.13 build captured 83 quote updates and 95 trades in one verification interval, with 807 green and 852 red cell paints and zero data errors. Stop/start restoration was checked separately. Raw diagnostic captures stay in local ignored directories; only the two selected tape-only images above are included in the repository.
 
 `./test.sh` also includes native-shaped null-cell model tests for frozen quote snapshots, instrument isolation, empty notification arrays, missing-value sentinels, historical neutrality, 50-trade limiting, stop cleanup and floating-point quote rounding. All 80 checks pass with `-Xverify:all`.
 
-Other TWS versions remain untested. Native class names and accessor signatures may change. Retention remains controlled by TWS: in the tested layout its native history model contained 17 trade events, so the tool could show 17 retained trades, capped at 50. It does not manufacture missing history. The repository's top screenshot is from an earlier native-tag version.
+Other TWS versions remain untested. Native class names and accessor signatures may change. Retention remains controlled by TWS: in the tested layout its native history model contained 17 trade events, so the tool could show 17 retained trades, capped at 50. It does not manufacture missing history. The comparison above shows this version running in the tested session.
 
 For `VerifyError`, restoration failure, freezes or unexpected UI behavior, stop testing and restart TWS. Report TWS/Java versions and opt-in diagnostic output. If rows remain unfiltered, check required columns and the existing-sorter limitation. If rows are filtered but neutral, inspect `feedHooks`, `quoteEvents`, `tradeEvents`, and `dataErrors` in `status`. Newly captured trades require usable bid/ask data; older unobserved trades intentionally stay neutral.
 

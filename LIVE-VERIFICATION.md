@@ -22,7 +22,7 @@ Verified getter mappings from the running bytecode:
 | Bid / ask | book.G(), book.F() |
 | Bid / ask size | book.aa(), book.Z() |
 
-These signatures are specific to this TWS build. No proprietary bytecode or captured user market data is committed. Local probe sources, bytecode, images and logs are under ignored work/ and logs/.
+These signatures are specific to this TWS build. No proprietary bytecode is committed. Local probe sources, bytecode, raw images and logs are under ignored work/ and logs/. Two selected, unaltered tape-only captures are published under docs/screenshots/ for the README before/after comparison.
 
 ## Evidence
 
