@@ -40,3 +40,7 @@ The tested native model retained 17 history events. The filter allows up to 50 t
 The initial v0.3.13 stop check verified visible tint removal, but a later bytecode audit found that separate attach commands had replaced the instrumentation instance needed to remove the renderer transformer. Disabled hooks from earlier versions remained installed. v0.3.14 retains the registering owner and checks removal success. The old disabled transformer bodies in the tested JVM were neutralized once; a TWS restart also clears them.
 
 The stronger verification now compares normalized instructions of all three target methods and 42 stable table properties with a clean native baseline. Three cycles matched exactly, including zero remaining agent-call instructions. See [the QA report](QA-REPORT-2026-10-15.md) and [live audit instructions](tests/live/README.md) for the independent trade/pixel measurements and regression coverage.
+
+## Live-update stability: v0.3.15
+
+A focused update-gap audit reproduced transient neutral colors in v0.3.14 (33/33 directional row checks). v0.3.15 refreshed classifications before painting and passed 18/18 such checks without flashes or wrong sides. A separate live audit matched 13 incoming trades, 13 quote-size snapshots and 918 colored cell paints with zero mismatches. Stop restored all 42 checked native properties and method fingerprints. See the [updated QA report](QA-REPORT-2026-10-15.md) for method, limits and retained evidence.

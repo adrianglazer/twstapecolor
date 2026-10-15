@@ -13,12 +13,12 @@ public final class RestorationTest {
    JTable t=new JTable(model);holder[0]=t;t.setRowHeight(23);t.setRowSelectionInterval(2,2);t.setColumnSelectionInterval(1,1);
    t.getColumnModel().moveColumn(1,0);t.getColumnModel().getColumn(0).setPreferredWidth(91);
    listeners[0]=model.getTableModelListeners().length;properties[0]=t.getPropertyChangeListeners().length;
-   TapeViewV0314.schedule(t,()->true);
+   TapeViewV0315.schedule(t,()->true);
   });flush();
   SwingUtilities.invokeAndWait(()->{
    JTable t=holder[0];check(t.getSelectedRow()==1,"filter preserves selection by model row");
    check(t.convertRowIndexToModel(t.getSelectedRow())==2,"selected event identity preserved");
-   TapeViewV0314.restoreAll();
+   TapeViewV0315.restoreAll();
    check(t.getSelectedRow()==2,"stop preserves current selected event");
    check(t.getSelectedColumn()==0,"column selection restored");
    check(t.getRowSorter()==null,"original sorter restored");
@@ -28,8 +28,8 @@ public final class RestorationTest {
    check(t.getPropertyChangeListeners().length==properties[0],"no property listener leak");
   });
   for(int i=0;i<20;i++){
-   SwingUtilities.invokeAndWait(()->TapeViewV0314.schedule(holder[0],()->true));flush();
-   SwingUtilities.invokeAndWait(TapeViewV0314::restoreAll);
+   SwingUtilities.invokeAndWait(()->TapeViewV0315.schedule(holder[0],()->true));flush();
+   SwingUtilities.invokeAndWait(TapeViewV0315::restoreAll);
   }
   SwingUtilities.invokeAndWait(()->{
    JTable t=holder[0];check(((DefaultTableModel)t.getModel()).getTableModelListeners().length==listeners[0],"20 restarts have no listener growth");

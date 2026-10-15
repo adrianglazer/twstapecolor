@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import javax.swing.table.TableModel;
 
 /** Read-only accessors verified against TWS 10.51.1c. No subscription/config writes. */
-final class LiveTapeDataV0314 {
+final class LiveTapeDataV0315 {
   record Quote(double bid,double ask,double bidSize,double askSize,long sequence){}
   record Trade(double last,double size,double bid,double ask){}
   private record Captured(double last,double size,Quote quote){}
@@ -41,7 +41,7 @@ final class LiveTapeDataV0314 {
   static Trade read(TableModel model,int row){
     try{
       Object event=event(model,row);if(event==null)return null;
-      double last=TapeViewV0314.number(get(event,"D")),size=TapeViewV0314.number(get(event,"F"));
+      double last=TapeViewV0315.number(get(event,"D")),size=TapeViewV0315.number(get(event,"F"));
       Object record=record(event);watch(record);
       Captured captured;
       synchronized(trades){captured=trades.get(event);}
@@ -72,8 +72,8 @@ final class LiveTapeDataV0314 {
     if(top==null){synchronized(quotes){if(quotes.containsKey(record))quotes.put(record,null);}lastQuote="unavailable";return;}
     Object book=get(top,"cO");
     if(book==null){synchronized(quotes){if(quotes.containsKey(record))quotes.put(record,null);}lastQuote="unavailable";return;}
-    double bid=TapeViewV0314.number(get(book,"G")),ask=TapeViewV0314.number(get(book,"F"));
-    double bidSize=TapeViewV0314.number(get(book,"aa")),askSize=TapeViewV0314.number(get(book,"Z"));
+    double bid=TapeViewV0315.number(get(book,"G")),ask=TapeViewV0315.number(get(book,"F"));
+    double bidSize=TapeViewV0315.number(get(book,"aa")),askSize=TapeViewV0315.number(get(book,"Z"));
     synchronized(quotes){
       Quote prior=quotes.get(record);
       if(prior!=null&&Double.compare(prior.bid(),bid)==0&&Double.compare(prior.ask(),ask)==0&&Double.compare(prior.bidSize(),bidSize)==0&&Double.compare(prior.askSize(),askSize)==0)return;
@@ -87,7 +87,7 @@ final class LiveTapeDataV0314 {
     try{
       Object record=record(event);if(!watch(record))return;
       Quote quote; synchronized(quotes){quote=quotes.get(record);}
-      double last=TapeViewV0314.number(get(event,"D")),size=TapeViewV0314.number(get(event,"F"));
+      double last=TapeViewV0315.number(get(event,"D")),size=TapeViewV0315.number(get(event,"F"));
       if(!Double.isFinite(last)||!Double.isFinite(size))return;
       Captured captured=new Captured(last,size,quote);
       synchronized(trades){
@@ -97,7 +97,7 @@ final class LiveTapeDataV0314 {
       }
       synchronized(quotes){current.put(record,captured);}
       tradeEvents.incrementAndGet();
-      lastTrade="last="+last+" size="+size+" quote="+(quote==null?"none":quote.bid()+"/"+quote.ask()+"#"+quote.sequence())+" direction="+(quote==null?0:TapeViewV0314.classify(last,quote.bid(),quote.ask()));
+      lastTrade="last="+last+" size="+size+" quote="+(quote==null?"none":quote.bid()+"/"+quote.ask()+"#"+quote.sequence())+" direction="+(quote==null?0:TapeViewV0315.classify(last,quote.bid(),quote.ask()));
     }catch(ReflectiveOperationException|RuntimeException e){failure(e);}
   }
   private static void failure(Exception e){errors.incrementAndGet();lastError=e.toString();}

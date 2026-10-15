@@ -14,3 +14,4 @@ java -Xverify:all -Djava.awt.headless=true -cp build/classes:build/test-classes:
 java -Xverify:all -Djava.awt.headless=true -cp build/classes:build/test-classes:lib/asm-9.8.jar twstapecolor.CallbackStopTest
 java -Xverify:all -Djava.awt.headless=true -cp build/classes:build/test-classes:lib/asm-9.8.jar twstapecolor.FailedStartTest
 java -Xverify:all -Djava.awt.headless=true -cp build/classes:build/test-classes:lib/asm-9.8.jar twstapecolor.FailedStopTest
+java -Xverify:all -Djava.awt.headless=true -cp build/classes:build/test-classes:lib/asm-9.8.jar twstapecolor.RepaintStabilityTest

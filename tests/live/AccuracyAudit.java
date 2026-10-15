@@ -134,10 +134,9 @@ public final class AccuracyAudit {
         Object quote=captured==null?null:get(captured,"quote");
         double bid=quote==null?Double.NaN:number(get(quote,"bid")),ask=quote==null?Double.NaN:number(get(quote,"ask"));
         int expected=side(last,bid,ask);Object print=printMethod.invoke(null,table,r);int applied=((Number)get(print,"direction")).intValue();
-        // A model event can have invalidated the cached view while its coalesced
-        // rebuild is still queued. Do not call that transient neutral an error.
+        // Pending filter work must not excuse transient neutral colors.
         Field viewsField=viewClass.getDeclaredField("views");viewsField.setAccessible(true);Object state=((Map<?,?>)viewsField.get(null)).get(table);
-        if(state!=null&&Boolean.TRUE.equals(field(state,"queued"))){deferred++;continue;}
+        if(state!=null&&Boolean.TRUE.equals(field(state,"queued"))){deferred++;}
         if(!table.getModel().getClass().getName().equals("feature.tape.ui.aT"))continue;
         distinctTrades.add(System.identityHashCode(event));
         if(applied!=expected)directionMismatch++;
