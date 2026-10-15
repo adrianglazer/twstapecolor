@@ -1,24 +1,30 @@
-# twstapecolor v0.3.15
+# twstapecolor v0.3.16
 
 Experimental Time & Sales **row backgrounds** for Interactive Brokers Trader Workstation (TWS) on Linux. Unofficial; not affiliated with or supported by Interactive Brokers. It does not place orders or use account credentials.
 
 ## Before and after
 
-Actual screen captures from TWS 10.51.1c on 2026-10-15, with only **Time, Last and Size** visible.
+Actual screen captures from TWS 10.51.1c on 2026-10-15. Level 2 is on the left; Time & Sales has only **Time, Last and Size** visible on the right.
 
-![Before and after: native TWS beside twstapecolor v0.3.14, showing full-row bid/ask backgrounds](twstapecolor.png)
+**Native appearance, verified after stop:**
 
-Green marks trades at or above the captured ask; red marks trades at or below the captured bid. Inside-spread and unknown trades keep their native background. Larger trades receive stronger shading across all three columns.
+![Native Level 2 colors and untinted Time and Sales](docs/screenshots/native-v0.3.16.png)
 
-The tape was live, so these captures show different moments and different trades. The graphic uses the original tape-only captures, enlarged 2× without changing their pixels; the left image also verifies that `stop` restores the native appearance.
+**v0.3.16 enabled:**
+
+![Level 2 colors preserved beside size-shaded Time and Sales](docs/screenshots/colored-v0.3.16.png)
+
+Green marks trades at or above the captured ask; red marks trades at or below the captured bid. Inside-spread and unknown trades keep their native background. Larger trades receive much stronger shading across all three columns. Level 2 keeps its native price-level colors.
+
+These are unaltered screen crops from different moments in the live session, so trades and quote sizes differ. The [earlier v0.3.14 comparison graphic](twstapecolor.png) remains available for reference.
 
 ## Behavior
 
 - Show the newest **50 trades** available in the retained TWS event model, in model order (newest first). A trade requires both a positive numeric **Last** and **Last Size** (or **Size**). Empty, zero, nonnumeric and nonfinite values are hidden.
 - Hide quote-only and incomplete rows **in the table view**. All events remain in the model. The tool cannot recover older trades that TWS has already dropped; increase TWS's event retention if fewer than 50 trades are retained.
 - In TWS, capture the **latest observed top-of-book quote before each incoming trade is delivered to the tape**, then freeze that quote with the trade event. Quote updates are captured separately from displayed rows, so only Time, Last and Size need to be visible. A later quote cannot recolor an earlier trade. This follows local TWS delivery order, not a guarantee of exchange sequencing across separate quote/trade feeds.
-- At or above the preceding ask: green (`#184F31`). At or below the preceding bid: red (`#66262A`). Inside the spread, missing quotes, and invalid, partial, locked or crossed quotes: original TWS appearance. Invalid quotes replace earlier valid quotes rather than silently reusing stale data.
-- Tint every visible column. Smaller trades have softer backgrounds; the largest of the visible trades receives the configured color. Intensity is `0.35 + 0.65 * log(1 + size) / log(1 + largest visible size)`, blended with each renderer's original background. The scale updates as trades enter or leave the visible set.
+- At or above the preceding ask: green (`#16834A`). At or below the preceding bid: red (`#B83B4B`). Inside the spread, missing quotes, and invalid, partial, locked or crossed quotes: original TWS appearance. Invalid quotes replace earlier valid quotes rather than silently reusing stale data.
+- Tint every visible column. Smaller trades have softer backgrounds; the largest of the visible trades receives the configured color. Intensity is `0.18 + 0.82 * sqrt(size / largest visible size)`, blended with each renderer's original background. The scale updates as trades enter or leave the visible set. With a 10,000-share maximum, 100 / 1,000 / 10,000 shares use about 26% / 44% / 100% intensity, making large prints easier to distinguish.
 - Preserve selected-cell appearance. `test-paint` uses alternating full-intensity colors solely for diagnosis.
 
 This version replaces the old UP/DOWN renderer-tag classifier with captured bid/ask comparisons. It is a price-relative classification, not a verified identification of the trade aggressor.
@@ -39,9 +45,9 @@ The filter installs a private Swing row sorter only when the table has no existi
 
 The agent retransforms three narrowly matched methods in JVM memory: the renderer selector in `jtable.basic.by`, the notification boundary in `jclient.record.o`, and the completed live-event factory in `feature.tape.data.a`. The exit hook loads the returned renderer and `this` only; it never reloads dead row/column arguments, preserving the fix for the original `VerifyError`. Existing stack-map frames are retained.
 
-Renderer wrappers are unwrapped before reuse. Tinting occurs inside an isolated paint call; shared component backgrounds, opacity, parent and bounds are restored in `finally`, including when painting fails. Classification uses captured quote/trade data and does not recursively render other cells. Model changes mark classifications dirty. The first paint refreshes them from the current model immediately, avoiding a neutral-background flash while the deferred filter update is queued. Filter membership is reapplied only when the included model rows change. Native painting uses frozen per-trade quotes; it never reads a newer quote to recolor an older trade. Quote state updates at record notifications, and classification uses the cached quote associated with the trade.
+Renderer wrappers are bound to their owning tape table and recheck that owner before any data access or row translation. Wrappers are cached per view (at most 64 delegates), unwrapped before reuse elsewhere, and released when the view closes. Tinting replaces background fills through the paint call's graphics only; it never calls native `setBackground` or `setOpaque`, and never reparents a shared renderer. Native text and icons are forwarded unchanged. Temporary renderer bounds are restored in `finally`, including when painting fails. Classification uses captured quote/trade data and does not recursively render other cells. Model changes mark classifications dirty. The first paint refreshes them from the current model immediately, avoiding a neutral-background flash while the deferred filter update is queued. Filter membership is reapplied only when the included model rows change. Native painting uses frozen per-trade quotes; it never reads a newer quote to recolor an older trade. Quote state updates at record notifications, and classification uses the cached quote associated with the trade.
 
-`stop` disables and restores data hooks, removes model listeners and the private view filter, releases captured event state, then removes the renderer transformer and requests restoration of the original bytecode. Model replacement discards the old view state. A later `start` installs fresh view state. The registering instrumentation handle is retained across commands; a failed transformer removal is reported as a warning instead of claiming restoration. View installation/removal preserves selection by model row. Stop waits for any in-flight data callback before clearing caches. Agent, data, view and hook classes have new versioned names to avoid reusing older classes already loaded in TWS.
+`stop` disables and restores data hooks, removes model listeners and the private view filter, releases captured event state, then removes the renderer transformer and requests restoration of the original bytecode. Model replacement or loss of displayability discards the old view state, including listeners and cached renderers. A pending installation is canceled if its displayed table closes first. A later `start` installs fresh view state. The registering instrumentation handle is retained across commands; a failed transformer removal is reported as a warning instead of claiming restoration. View installation/removal preserves selection by model row. Stop waits for any in-flight data callback before clearing caches. Agent, data, view and hook classes have new versioned names to avoid reusing older classes already loaded in TWS.
 
 ## Build and run
 
@@ -58,7 +64,7 @@ jcmd -l
 ./twstapecolor stop --pid 12345
 ```
 
-Before upgrading from an older running agent, **restart TWS completely** to clear stale hooks and renderers. Initially validate in paper trading. Change symbols, reorder/hide columns, scroll, and try `start`, `stop`, `start` while watching the tape. Confirm NBBO parsing and event order on your TWS build before trusting the display.
+Before upgrading from an older running agent, **restart TWS completely** to clear stale hooks and renderers. Initially validate in paper trading. Versions through v0.3.15 could permanently disable backgrounds on shared native renderers, affecting Level 2. Stopping those versions cannot reliably recover that state; restart TWS once before upgrading. Change symbols, reorder/hide columns, scroll, and try `start`, `stop`, `start` while watching the tape. Confirm NBBO parsing and event order on your TWS build before trusting the display.
 
 Custom colors (six-digit hex RGB):
 
@@ -79,7 +85,9 @@ Commands print to the console. Normal commands leave no persistent reports: a sh
 
 ## Validation and limits
 
-v0.3.15 fixes live-update background flicker: paints no longer see an empty classification cache between a model event and its queued rebuild, and unchanged filter membership no longer resets the sorter. The regression suite checks that immediate paints stay colored and changed trades receive fresh classifications. Size-dependent shading can still adjust when the largest visible trade changes.
+v0.3.16 uses brighter defaults and a wider size-intensity range. It fixes Level 2 interference caused by restoring a context-dependent `isOpaque()` answer as a permanent native renderer setting. The new painter changes only its graphics, reuses wrappers and paint components, releases closed views, caches native field lookups, and rejects unrelated quote notifications without taking the feed callback lock. Native trade/record caches remain capped at 4,096 / 64. One million synthetic paints complete under a 64 MiB heap limit; live correctness, isolation and resource measurements are recorded in the [QA report](QA-REPORT-2026-10-15.md).
+
+v0.3.15 fixed live-update background flicker: paints no longer see an empty classification cache between a model event and its queued rebuild, and unchanged filter membership no longer resets the sorter. The regression suite checks that immediate paints stay colored and changed trades receive fresh classifications. Size-dependent shading can still adjust when the largest visible trade changes.
 
 v0.3.14 fixed five issues found during the deeper review: renderer-transformer ownership across separate attach commands, selection loss when adding/removing the filter, stale quotes after loss of the live top record, current-trade cache growth beyond its record limit, and an in-flight callback racing with stop. Failed-start rollback and failed-stop reporting also have regression coverage.
 
@@ -90,11 +98,11 @@ For opt-in reproducible live tests, see [tests/live](tests/live/README.md). Norm
 
 `./test.sh` compiles the agent and runs headless Swing checks with `-Xverify:all`. Tests cover event ordering, absent/invalid/partial/locked/crossed NBBO, pair parsing, hidden columns, the 50-trade limit, bounded history reads, adaptive intensity, full-cell painting, shared-component restoration (also on exceptions), model updates/replacement, filter removal/restart, selected cells, and non-tape isolation. A synthetic target reproduces the dead row/column argument stack-map frame and loads and executes transformed bytecode. An instrumentation test double verifies transformer installation/removal across stop/start cycles.
 
-**Live verification (2026-10-15, TWS 10.51.1c):** attached to the running TWS, confirmed null cell values and native event accessors, and verified live bid/ask prices and quote sizes. Observed both green ask-side and red bid-side full-row backgrounds in actual screen captures of the existing three-column tape, with variable intensity. Independent audits compared native quote/trade values and actual background pixels. The v0.3.14 audits matched all 27 live trades and 3,315 colored cells; the earlier baseline matched 93 trades and 2,280 colored cells. A further arrival-book check matched all five sampled quote-price and quote-size snapshots. Three repeated stop/start cycles restored all 42 compared table properties and normalized method fingerprints, with zero remaining agent calls in the three target methods. See the [expanded QA report](QA-REPORT-2026-10-15.md) for counts, fixes and limits. Raw diagnostic captures stay in local ignored directories; only the two selected tape-only images above are included in the repository.
+**Live verification (2026-10-15, TWS 10.51.1c):** attached to the running TWS, confirmed null cell values and native event accessors, and verified live bid/ask prices and quote sizes. Observed both green ask-side and red bid-side full-row backgrounds in actual screen captures of the existing three-column tape, with variable intensity. Independent audits compared native quote/trade values and actual background pixels. The v0.3.14 audits matched all 27 live trades and 3,315 colored cells; the earlier baseline matched 93 trades and 2,280 colored cells. A further arrival-book check matched all five sampled quote-price and quote-size snapshots. Three repeated stop/start cycles restored all 42 compared table properties and normalized method fingerprints, with zero remaining agent calls in the three target methods. See the [expanded QA report](QA-REPORT-2026-10-15.md) for counts, fixes and limits. Raw diagnostic captures stay in local ignored directories; selected market-data-only captures are included under `docs/screenshots/`.
 
-`./test.sh` also includes native-shaped null-cell model tests for frozen quote snapshots, instrument isolation, empty notification arrays, missing-value sentinels, historical neutrality, 50-trade limiting, stop cleanup and floating-point quote rounding. All 6,334 automated checks pass with `-Xverify:all`.
+`./test.sh` also includes native-shaped null-cell model tests for frozen quote snapshots, instrument isolation, empty notification arrays, missing-value sentinels, historical neutrality, 50-trade limiting, stop cleanup and floating-point quote rounding. All 6,368 automated checks pass with `-Xverify:all`.
 
-Other TWS versions remain untested. Native class names and accessor signatures may change. Retention remains controlled by TWS: in the tested layout its native history model contained 17 trade events, so the tool could show 17 retained trades, capped at 50. It does not manufacture missing history. The comparison above records v0.3.14 running in the tested session; v0.3.15 fixes update-time flicker without changing the color rules.
+Other TWS versions remain untested. Native class names and accessor signatures may change. Retention remains controlled by TWS: in the tested layout its native history model contained 17 trade events, so the tool could show 17 retained trades, capped at 50. It does not manufacture missing history. The comparison above shows v0.3.16 and confirms that native Level 2 colors remain visible.
 
 For `VerifyError`, restoration failure, freezes or unexpected UI behavior, stop testing and restart TWS. Report TWS/Java versions and opt-in diagnostic output. If rows remain unfiltered, check required columns and the existing-sorter limitation. If rows are filtered but neutral, inspect `feedHooks`, `quoteEvents`, `tradeEvents`, and `dataErrors` in `status`. Newly captured trades require usable bid/ask data; older unobserved trades intentionally stay neutral.
 

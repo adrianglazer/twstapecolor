@@ -143,7 +143,7 @@ public final class AccuracyAudit {
         for(int c=0;c<table.getColumnCount();c++){
           if(table.isCellSelected(r,c)){selected++;continue;}
           Component comp=table.prepareRenderer(table.getCellRenderer(r,c),r,c);
-          boolean wrapped=comp.getClass().getName().equals("twstapecolor.IsolatedTintRenderer");
+          boolean wrapped=comp.getClass().getName().equals("twstapecolor.TintRendererV0316");
           Component original=wrapped?(Component)field(comp,"delegate"):comp;
           Color background=original.getBackground();boolean opaque=original instanceof JComponent jc&&jc.isOpaque();Container parent=original.getParent();Rectangle bounds=original.getBounds();
           int width=table.getColumnModel().getColumn(c).getWidth(),height=table.getRowHeight(r);
@@ -152,8 +152,8 @@ public final class AccuracyAudit {
           boolean restored=Objects.equals(background,original.getBackground())&&opaque==(original instanceof JComponent jc&&jc.isOpaque())&&parent==original.getParent()&&bounds.equals(original.getBounds());
           if(!restored)restorationMismatch++;
           if(expected!=0){
-            double intensity=.35+.65*Math.log1p(size)/Math.log1p(largest);
-            Color tint=expected>0?new Color(24,79,49):new Color(102,38,42);Color base=background==null?Color.BLACK:background;
+            double intensity=.18+.82*Math.sqrt(size/largest);
+            Color tint=expected>0?new Color(22,131,74):new Color(184,59,75);Color base=background==null?Color.BLACK:background;
             int red=(int)Math.round(base.getRed()+(tint.getRed()-base.getRed())*intensity),green=(int)Math.round(base.getGreen()+(tint.getGreen()-base.getGreen())*intensity),blue=(int)Math.round(base.getBlue()+(tint.getBlue()-base.getBlue())*intensity);
             int oracleRgb=new Color(red,green,blue).getRGB(),actual=image.getRGB(width-3,1);
             boolean match=wrapped&&actual==oracleRgb;pixelChecks++;if(!match)pixelMismatch++;
@@ -169,9 +169,11 @@ public final class AccuracyAudit {
   }
   static void finish()throws Exception{
     synchronized(AccuracyAudit.class){active=false;}
+    try{
     instrumentation.removeTransformer(transformer);instrumentation.retransformClasses(targets);
     Files.writeString(root.resolve("events.csv"),"index,event,last,size,oracleBid,oracleAsk,capturedBid,capturedAsk,oracleDirection,quoteMatch,tradeMatch,arrivalBid,arrivalAsk,arrivalDirection,arrivalBookMatch\n"+String.join("\n",events)+"\n");
     Files.writeString(root.resolve("pixels.csv"),"sample,event,row,column,last,size,bid,ask,oracleDirection,appliedDirection,oracleRGB,actualRGB,pixelMatch,stateRestored\n"+String.join("\n",pixels)+"\n");
     Files.writeString(root.resolve("summary.txt"),"samples="+samples+"\nquoteChecks="+quoteChecks+"\neventChecks="+eventChecks+"\neventMismatch="+eventMismatch+"\narrivalBookDifferences="+arrivalBookDifferences+"\narrivalDirectionDifferences="+arrivalDirectionDifferences+"\nquoteSizeChecks="+quoteSizeChecks+"\nquoteSizeMismatch="+quoteSizeMismatch+"\naskTrades="+askTrades+"\nbidTrades="+bidTrades+"\nneutralTrades="+neutralTrades+"\ndistinctPaintedTrades="+distinctTrades.size()+"\npixelChecks="+pixelChecks+"\npixelMismatch="+pixelMismatch+"\ndirectionMismatch="+directionMismatch+"\nrestorationMismatch="+restorationMismatch+"\ndeferred="+deferred+"\nselectedSkipped="+selected+"\nerrors="+errors+"\n");
+    }finally{books.clear();tables.clear();events.clear();pixels.clear();distinctTrades.clear();transformer=null;targets=null;instrumentation=null;}
   }
 }

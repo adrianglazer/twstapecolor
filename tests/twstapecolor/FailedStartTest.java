@@ -12,9 +12,9 @@ public final class FailedStartTest {
    case "retransformClasses" -> {retransforms[0]++;yield null;}
    default -> throw new UnsupportedOperationException(m.getName());
   });
-  try{HookV0315.command("start|#184F31|#66262A",inst);throw new AssertionError("expected failed start");}catch(IllegalStateException expected){}
+  try{HookV0316.command("start|#184F31|#66262A",inst);throw new AssertionError("expected failed start");}catch(IllegalStateException expected){}
   if(installed[0]!=1||removed[0]!=1||retransforms[0]!=2)throw new AssertionError("new renderer hook not rolled back");
-  String status=HookV0315.command("status",inst);
+  String status=HookV0316.command("status",inst);
   if(!status.contains("injected=false")||!status.contains("enabled=false"))throw new AssertionError("failed start left active state");
   System.out.println("Failed-start rollback passed (3 checks)");
  }

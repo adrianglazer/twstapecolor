@@ -44,3 +44,9 @@ The stronger verification now compares normalized instructions of all three targ
 ## Live-update stability: v0.3.15
 
 A focused update-gap audit reproduced transient neutral colors in v0.3.14 (33/33 directional row checks). v0.3.15 refreshed classifications before painting and passed 18/18 such checks without flashes or wrong sides. A separate live audit matched 13 incoming trades, 13 quote-size snapshots and 918 colored cell paints with zero mismatches. Stop restored all 42 checked native properties and method fingerprints. See the [updated QA report](QA-REPORT-2026-10-15.md) for method, limits and retained evidence.
+
+## Level 2 isolation and resources: v0.3.16
+
+The persistent Level 2 color loss was traced to restoring `DefaultTableCellRenderer.isOpaque()` as a stored flag even though that getter depends on its table context. v0.3.16 never changes native renderer backgrounds, opacity or parent ownership. Starting from the user's freshly restarted TWS, 80 paired Level 2 renders had no pixel changes around tape paints; three stop cycles restored all 42 checked properties and method fingerprints. A separate live audit matched 40 incoming trades and 1,914 colored cells. Defaults and the size curve now make large trades much brighter than small trades.
+
+A five-minute live CPU/heap/EDT sample showed bounded caches and no sustained monotonic heap growth in that interval. Significant CPU usage was already present with coloring disabled. One million synthetic paints completed under a 64 MiB heap limit. See the [resource review](QA-REPORT-2026-10-15.md) for exact measurements and limits.

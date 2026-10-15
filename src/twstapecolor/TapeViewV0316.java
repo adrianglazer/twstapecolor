@@ -1,6 +1,8 @@
 package twstapecolor;
 
 import java.awt.EventQueue;
+import java.awt.event.HierarchyEvent;
+import java.awt.event.HierarchyListener;
 import java.beans.PropertyChangeListener;
 import java.util.*;
 import java.util.function.BooleanSupplier;
@@ -10,12 +12,12 @@ import javax.swing.event.TableModelListener;
 import javax.swing.table.*;
 
 /** EDT-owned view of a newest-first event model. Quote rows remain in the model. */
-final class TapeViewV0315 {
+final class TapeViewV0316 {
   static final int LIMIT=50;
   record Print(int direction,double intensity) {}
   private static final Print UNKNOWN=new Print(0,0);
-  private static final String PENDING=TapeViewV0315.class.getName()+".pending";
-  private static final Map<JTable,TapeViewV0315> views=new IdentityHashMap<>();
+  private static final String PENDING=TapeViewV0316.class.getName()+".pending";
+  private static final Map<JTable,TapeViewV0316> views=new IdentityHashMap<>();
   private static final Pattern PAIR=Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(?:[xX×/]|\\s+-\\s+)\\s*([0-9]+(?:\\.[0-9]+)?)\\s*$");
   private final JTable table;
   private final TableModel model;
@@ -23,7 +25,11 @@ final class TapeViewV0315 {
   private final BooleanSupplier active;
   private Map<Integer,Print> prints=Map.of();
   private Set<Integer> included=Set.of();
+  private final Map<TableCellRenderer,TableCellRenderer> renderers=new IdentityHashMap<>();
   private boolean dirty=true,queued,closed;
+  private final HierarchyListener disposal=e->{
+    if((e.getChangeFlags()&HierarchyEvent.DISPLAYABILITY_CHANGED)!=0&&!e.getComponent().isDisplayable())close();
+  };
   private final TableModelListener changes=e->invalidate();
   private final PropertyChangeListener replacement=e->{
     if(e.getPropertyName().equals("model")||e.getPropertyName().equals("rowSorter"))close();
@@ -31,16 +37,17 @@ final class TapeViewV0315 {
 
   static void schedule(JTable table,BooleanSupplier active){
     if(!EventQueue.isDispatchThread()||views.containsKey(table)||table.getClientProperty(PENDING)!=null)return;
+    boolean displayed=table.isDisplayable();
     table.putClientProperty(PENDING,Boolean.TRUE);
     EventQueue.invokeLater(()->{
       table.putClientProperty(PENDING,null);
       // Preserve an application-owned sorter rather than overriding its behavior.
-      if(!active.getAsBoolean()||views.containsKey(table)||table.getRowSorter()!=null||(!LiveTapeDataV0315.supports(table.getModel())&&columns(table.getModel())==null))return;
-      TapeViewV0315 view=new TapeViewV0315(table,active);
+      if((displayed&&!table.isDisplayable())||!active.getAsBoolean()||views.containsKey(table)||table.getRowSorter()!=null||(!LiveTapeDataV0316.supports(table.getModel())&&columns(table.getModel())==null))return;
+      TapeViewV0316 view=new TapeViewV0316(table,active);
       views.put(table,view);
     });
   }
-  private TapeViewV0315(JTable table,BooleanSupplier active){
+  private TapeViewV0316(JTable table,BooleanSupplier active){
     this.table=table;this.model=table.getModel();this.active=active;
     sorter=new TableRowSorter<>(model);
     for(int i=0;i<model.getColumnCount();i++)sorter.setSortable(i,false);
@@ -50,6 +57,7 @@ final class TapeViewV0315 {
     selection.restore(table);
     model.addTableModelListener(changes);
     table.addPropertyChangeListener(replacement);
+    table.addHierarchyListener(disposal);
   }
   private void invalidate(){
     // Refresh from the current model before any paint, without changing the
@@ -77,7 +85,7 @@ final class TapeViewV0315 {
     table.repaint();
   }
   static Print print(JTable table,int viewRow){
-    TapeViewV0315 view=views.get(table);
+    TapeViewV0316 view=views.get(table);
     if(view==null||viewRow<0||viewRow>=table.getRowCount())return UNKNOWN;
     view.refresh();
     return view.prints.getOrDefault(table.convertRowIndexToModel(viewRow),UNKNOWN);
@@ -86,6 +94,8 @@ final class TapeViewV0315 {
     if(closed)return;
     closed=true;
     table.removePropertyChangeListener(replacement);
+    table.removeHierarchyListener(disposal);
+    renderers.clear();
     model.removeTableModelListener(changes);
     views.remove(table);
     if(table.getRowSorter()==sorter){
@@ -121,8 +131,21 @@ final class TapeViewV0315 {
       }finally{rowSelection.setValueIsAdjusting(rowsAdjusting);columnSelection.setValueIsAdjusting(columnsAdjusting);}
     }
   }
-  static void restoreAll(){for(TapeViewV0315 view:List.copyOf(views.values()))view.close();}
+  static void restoreAll(){for(TapeViewV0316 view:List.copyOf(views.values()))view.close();}
 
+  static TableCellRenderer renderer(JTable table,TableCellRenderer delegate){
+    TapeViewV0316 view=views.get(table);
+    if(view==null)return new HookV0316.TapeRenderer(delegate,table);
+    TableCellRenderer cached=view.renderers.get(delegate);
+    if(cached==null){
+      if(view.renderers.size()>=64)view.renderers.clear();
+      cached=new HookV0316.TapeRenderer(delegate,table);view.renderers.put(delegate,cached);
+    }
+    return cached;
+  }
+  static double intensity(double size,double largest){
+    return .18+.82*Math.sqrt(Math.clamp(size/largest,0,1));
+  }
   private static String name(String text){return text.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]","");}
   // Read model columns, including columns hidden in the table view.
   private static int[] columns(TableModel model){
@@ -152,7 +175,7 @@ final class TapeViewV0315 {
     return last>=ask-epsilon?1:last<=bid+epsilon?-1:0;
   }
   static Map<Integer,Print> snapshot(TableModel model){
-    if(LiveTapeDataV0315.supports(model))return nativeSnapshot(model);
+    if(LiveTapeDataV0316.supports(model))return nativeSnapshot(model);
     int[] c=columns(model);
     if(c==null)return Map.of();
     // Pick trades before scanning quotes; hidden quote events never consume this budget.
@@ -176,7 +199,7 @@ final class TapeViewV0315 {
     for(int row=boundary;row>=0;row--){
       if(selected.contains(row)){
         double last=number(model.getValueAt(row,c[0])),size=number(model.getValueAt(row,c[1]));
-        double intensity=.35+.65*Math.log1p(size)/Math.log1p(largest);
+        double intensity=intensity(size,largest);
         result.put(row,new Print(classify(last,bid,ask),intensity));
       }
       // The current event cannot be the preceding quote for its own trade.
@@ -195,10 +218,10 @@ final class TapeViewV0315 {
     return Map.copyOf(result);
   }
   private static Map<Integer,Print> nativeSnapshot(TableModel model){
-    Map<Integer,LiveTapeDataV0315.Trade> trades=new LinkedHashMap<>();
+    Map<Integer,LiveTapeDataV0316.Trade> trades=new LinkedHashMap<>();
     double largest=0;
     for(int row=0;row<model.getRowCount()&&trades.size()<LIMIT;row++){
-      LiveTapeDataV0315.Trade trade=LiveTapeDataV0315.read(model,row);
+      LiveTapeDataV0316.Trade trade=LiveTapeDataV0316.read(model,row);
       if(trade!=null&&Double.isFinite(trade.last())&&Double.isFinite(trade.size())){
         trades.put(row,trade);largest=Math.max(largest,trade.size());
       }
@@ -206,7 +229,7 @@ final class TapeViewV0315 {
     Map<Integer,Print> result=new HashMap<>();
     for(var entry:trades.entrySet()){
       var trade=entry.getValue();
-      result.put(entry.getKey(),new Print(classify(trade.last(),trade.bid(),trade.ask()),.35+.65*Math.log1p(trade.size())/Math.log1p(largest)));
+      result.put(entry.getKey(),new Print(classify(trade.last(),trade.bid(),trade.ask()),intensity(trade.size(),largest)));
     }
     return Map.copyOf(result);
   }

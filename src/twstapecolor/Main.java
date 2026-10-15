@@ -5,13 +5,13 @@ import java.time.*;
 import java.time.format.*;
 import java.util.Set;
 public final class Main {
-  static final String VERSION="v0.3.15";
+  static final String VERSION="v0.3.16";
   public static void main(String[] a) throws Exception {
     if(a.length==1 && (a[0].equals("--version")||a[0].equals("version"))){System.out.println("twstapecolor "+VERSION+" (experimental bytecode hook)");return;}
     if(a.length<3 || !a[1].equals("--pid") || !Set.of("test-paint","start","status","stop","dump","probe","report").contains(a[0])) {
       usage();return;
     }
-    String ask="#184F31", bid="#66262A";
+    String ask="#16834A", bid="#B83B4B";
     boolean debug=false;
     java.util.Set<String> seen=new java.util.HashSet<>();
     for(int i=3;i<a.length;){

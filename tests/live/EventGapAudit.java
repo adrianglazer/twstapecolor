@@ -40,5 +40,5 @@ public final class EventGapAudit {
    if(gapSamples<=3){BufferedImage image=new BufferedImage(t.getWidth(),t.getHeight(),BufferedImage.TYPE_INT_RGB);Graphics2D g=image.createGraphics();try{t.paint(g);}finally{g.dispose();}ImageIO.write(image,"png",root.resolve("gap-"+gapSamples+".png").toFile());}
   }catch(Throwable e){errors++;try{Files.writeString(root.resolve("errors.txt"),e+"\n",StandardOpenOption.CREATE,StandardOpenOption.APPEND);}catch(Exception ignored){}}
  }
- static void finish(){active=false;listeners.forEach((t,l)->t.getModel().removeTableModelListener(l));listeners.clear();try{Files.writeString(root.resolve("summary.txt"),"events="+events+"\ngapSamples="+gapSamples+"\ndirectionalChecks="+directionalChecks+"\nneutralFlashes="+neutralFlashes+"\nwrongSides="+wrongSides+"\nerrors="+errors+"\n");}catch(Exception ignored){}}
+ static void finish(){active=false;listeners.forEach((t,l)->t.getModel().removeTableModelListener(l));listeners.clear();try{Files.writeString(root.resolve("summary.txt"),"events="+events+"\ngapSamples="+gapSamples+"\ndirectionalChecks="+directionalChecks+"\nneutralFlashes="+neutralFlashes+"\nwrongSides="+wrongSides+"\nerrors="+errors+"\n");}catch(Exception ignored){}finally{tables.clear();queued.clear();}}
 }
