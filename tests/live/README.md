@@ -7,7 +7,7 @@ From the project root:
 ```bash
 bash tests/live/build.sh
 ./twstapecolor start --pid PID
-java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/AccuracyAudit.jar" "$PWD/work/logs/my-audit|V0319|45"
+java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/AccuracyAudit.jar" "$PWD/work/logs/my-audit|V0320|45"
 ```
 
 The accuracy audit runs for 45 seconds, samples displayed rows twice a second and removes its own transformers afterward. It records:
@@ -41,7 +41,7 @@ Zero mismatches establish consistency with TWS data and local callback order dur
 To sample paints after a native model event but before the deferred filter refresh:
 
 ```bash
-java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/EventGapAudit.jar" "$PWD/work/logs/update-gap|V0319|30"
+java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/EventGapAudit.jar" "$PWD/work/logs/update-gap|V0320|30"
 ```
 
 This bounded diagnostic installs a temporary model listener, checks each directional row against a decimal quote comparison, and saves the first three table renders. Its listener is removed after 30 seconds. `neutralFlashes`, `wrongSides` and `errors` must all be zero; a run with no directional checks is inconclusive. It reproduced the cache gap in v0.3.14. The accuracy audit also checks actual pixels while filter refreshes are pending rather than skipping those observations.
@@ -56,12 +56,12 @@ java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/
 ./twstapecolor start --pid PID
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/Level2IsolationAudit.jar" "$PWD/work/logs/level2|30"
 # After correctness audits finish, measure ordinary live operation:
-java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/ResourceAudit.jar" "$PWD/work/logs/live-resources|300|V0319"
+java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/ResourceAudit.jar" "$PWD/work/logs/live-resources|300|V0320"
 ```
 
 The isolation audit compares two full Level 2 renders around repeated tape paints within the same EDT turn. It reports pixel differences, unexpected tape wrappers, sorter changes and colored depth rows. A changing live book can affect pixels; inspect any differences. The resource audit samples process CPU time, heap, GC, EDT queue delay and cache sizes once a second, then shuts down its worker. It never forces GC. Compare CPU time deltas per elapsed second; 1.0 means one CPU core. These are whole-TWS measurements and include market activity and unrelated panels. Native and enabled intervals cannot establish causal CPU differences by themselves.
 
-For a headless renderer allocation comparison, first run `./test.sh` and build the live tools. `RendererBenchmark VERSION ITERATIONS` needs both the production classes/JAR and synthetic fixtures from `build/test-classes` on its classpath. Run versions in separate JVMs. `OpacityRepro IsolatedTintRenderer` with an old JAR reproduces the native opacity corruption; `OpacityRepro TintRendererV0319` with the current build preserves it. All generated profiles and captures belong under ignored `work/` or `logs/`.
+For a headless renderer allocation comparison, first run `./test.sh` and build the live tools. `RendererBenchmark VERSION ITERATIONS` needs both the production classes/JAR and synthetic fixtures from `build/test-classes` on its classpath. Run versions in separate JVMs. `OpacityRepro IsolatedTintRenderer` with an old JAR reproduces the native opacity corruption; `OpacityRepro TintRendererV0320` with the current build preserves it. All generated profiles and captures belong under ignored `work/` or `logs/`.
 
 ## Symbol-switch verification
 
@@ -72,7 +72,7 @@ For the authorized 1810 / 9988 SEHK or XLAB / WETO / TCRT US symbols in a layout
 ```bash
 # This optional driver changes the selected symbol using an existing native history item.
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/SymbolChoice.jar" "1810|depth"
-java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/SymbolSwitchAudit.jar" "$PWD/work/logs/switch-1810|1810|V0319|8"
+java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/SymbolSwitchAudit.jar" "$PWD/work/logs/switch-1810|1810|V0320|8"
 ```
 
 `SymbolChoice` allows only 1810 / 9988 SEHK and XLAB / WETO / TCRT US history items, and refuses other symbols/exchanges, missing history entries, or ambiguous layouts. It selects the same native combo history item used by TWS's UI. It does not send orders or change linking preferences. `SymbolSwitchAudit` only observes: it records the asynchronous native transfer separately, then requires both selectors, Current and history to agree with the requested instrument. After settlement, every retained history event must belong to that instrument, Current must have no private sorter, and native history identities must advance with freshly captured events. The duration is an upper bound: the audit can finish early after two ready seconds, at least two captured events and a new history identity. A run with zero ready samples or no new history arrivals is inconclusive. It releases table/event references at completion.

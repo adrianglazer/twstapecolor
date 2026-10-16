@@ -8,7 +8,7 @@ public final class NativeResetStressTest{
  static void rows(int trades,int price){Vector data=model.getDataVector();data.clear();for(int k=0;k<trades;k++)data.add(new Vector<>(Arrays.asList(price+1,100+k,null,null)));if(trades>0)data.add(new Vector<>(Arrays.asList(null,null,price,price+1)));}
  public static void main(String[] args)throws Exception{
   Random random=new Random(16102026);
-  SwingUtilities.invokeAndWait(()->{model=new feature.tape.ui.aT(new Object[][]{{101,100,null,null},{null,null,100,101}});table=new feature.tape.ui.aN(model);TapeViewV0319.schedule(table,()->true);});SwingUtilities.invokeAndWait(()->{});
+  SwingUtilities.invokeAndWait(()->{model=new feature.tape.ui.aT(new Object[][]{{101,100,null,null},{null,null,100,101}});table=new feature.tape.ui.aN(model);TapeViewV0320.schedule(table,()->true);});SwingUtilities.invokeAndWait(()->{});
   for(int i=0;i<1000;i++){
    int count=new int[]{0,1,17,50,70}[random.nextInt(5)],kind=random.nextInt(5),price=(i%2==0?100:10000);
    SwingUtilities.invokeAndWait(()->{
@@ -18,10 +18,10 @@ public final class NativeResetStressTest{
    });SwingUtilities.invokeAndWait(()->{});
    SwingUtilities.invokeAndWait(()->{
     check(table.getRowCount()==Math.min(count,50),"native reset did not recover the requested trade count");
-    for(int r=0;r<table.getRowCount();r++){check(table.convertRowIndexToModel(r)==r,"stale native mapping after reset");check(TapeViewV0319.print(table,r).direction()==1,"reset reused previous instrument's quote");}
+    for(int r=0;r<table.getRowCount();r++){check(table.convertRowIndexToModel(r)==r,"stale native mapping after reset");check(TapeViewV0320.print(table,r).direction()==1,"reset reused previous instrument's quote");}
    });
   }
-  SwingUtilities.invokeAndWait(()->{TapeViewV0319.restoreAll();check(table.getRowSorter()==null,"stress stop did not restore native view");});
+  SwingUtilities.invokeAndWait(()->{TapeViewV0320.restoreAll();check(table.getRowSorter()==null,"stress stop did not restore native view");});
   System.out.println("Native reset stress passed ("+checks+" checks)");
  }
 }

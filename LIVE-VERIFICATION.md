@@ -63,3 +63,7 @@ The HK session had no depth subscription, so actual depth rows/colors could not 
 ## v0.3.19 — US premarket, 2026-10-16
 
 Fresh TWS, XLAB and user-requested TCRT, with real depth rows on both sides. Independent live quote/size/direction and RGB checks, linked tape/depth switches, three exact stop/start restorations, full debug CSV replay and short native/enabled resource intervals are documented in [QA-US-2026-10-16.md](QA-US-2026-10-16.md). The README image now uses actual TCRT before/after tape-only captures with the current palette. The earlier HK report remains historical and did not verify subscribed depth rows.
+
+## v0.3.20 — launcher discovery checks
+
+The full Java suite passed 56,582 checks, including 24 exact-match discovery and CLI checks; the six Python verifier tests also passed. Read-only discovery identified the same actual TWS PID as `jcmd -l`, without loading or changing an agent. With no TWS visible to the launcher, `java -jar build/twstapecolor.jar status` printed the documented no-instance message and returned exit code 1. Multiple candidates are refused in tests, with their PIDs listed; explicit `--pid` remains supported. No Windows live tests or new market-color audits were performed for this launcher change; the v0.3.19 market verification above remains historical. Runtime helpers advance to V0320 to isolate upgrades from already loaded versions.

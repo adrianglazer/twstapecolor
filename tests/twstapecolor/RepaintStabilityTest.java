@@ -9,7 +9,7 @@ public final class RepaintStabilityTest {
  public static void main(String[] args)throws Exception{
   SwingUtilities.invokeAndWait(()->{
    model=new DefaultTableModel(new Object[][]{{101,200,null,null},{100,100,null,null},{null,null,100,101}},new Object[]{"Last","Size","Bid","Ask"});
-   table=new JTable(model);TapeViewV0319.schedule(table,()->true);
+   table=new JTable(model);TapeViewV0320.schedule(table,()->true);
   });flush();
   AtomicInteger sortEvents=new AtomicInteger();
   SwingUtilities.invokeAndWait(()->{
@@ -17,26 +17,26 @@ public final class RepaintStabilityTest {
    for(int i=0;i<100;i++){
     model.fireTableRowsUpdated(0,1);
     // This is the paint opportunity before the queued filter refresh runs.
-    check(TapeViewV0319.print(table,0).direction()==1,"ask row flashed neutral before deferred refresh");
-    check(TapeViewV0319.print(table,1).direction()==-1,"bid row flashed neutral before deferred refresh");
+    check(TapeViewV0320.print(table,0).direction()==1,"ask row flashed neutral before deferred refresh");
+    check(TapeViewV0320.print(table,1).direction()==-1,"bid row flashed neutral before deferred refresh");
    }
   });flush();
   SwingUtilities.invokeAndWait(()->{
    check(sortEvents.get()==0,"unchanged membership needlessly reset the sorter");
    // Reusing old row indices would avoid the flash but color new rows incorrectly.
    model.setValueAt(100,0,0);model.setValueAt(101,1,0);
-   check(TapeViewV0319.print(table,0).direction()==-1,"changed row received stale ask classification");
-   check(TapeViewV0319.print(table,1).direction()==1,"changed row received stale bid classification");
+   check(TapeViewV0320.print(table,0).direction()==-1,"changed row received stale ask classification");
+   check(TapeViewV0320.print(table,1).direction()==1,"changed row received stale bid classification");
   });flush();
   SwingUtilities.invokeAndWait(()->{
-   check(TapeViewV0319.print(table,0).direction()==-1,"classification changed after queued refresh");
+   check(TapeViewV0320.print(table,0).direction()==-1,"classification changed after queued refresh");
    model.setValueAt(null,0,1);
-   check(TapeViewV0319.print(table,0).direction()==0,"incomplete row kept a stale tint");
+   check(TapeViewV0320.print(table,0).direction()==0,"incomplete row kept a stale tint");
   });flush();
   SwingUtilities.invokeAndWait(()->{
    check(table.getRowCount()==1,"membership changes still update the filter");
-   check(TapeViewV0319.print(table,0).direction()==1,"filtered view no longer maps to its model row");
-   TapeViewV0319.restoreAll();
+   check(TapeViewV0320.print(table,0).direction()==1,"filtered view no longer maps to its model row");
+   TapeViewV0320.restoreAll();
    check(table.getRowSorter()==null&&table.getRowCount()==3,"stop restores native rows");
   });
   System.out.println("Repaint stability passed ("+checks+" checks)");

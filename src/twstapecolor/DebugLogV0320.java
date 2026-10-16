@@ -6,7 +6,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 /** Opt-in bounded, asynchronous market-event trace. No disk I/O on feed/EDT callbacks. */
-final class DebugLogV0319 {
+final class DebugLogV0320 {
   static final int CAPACITY=4096, FILES=4, LIMIT=4*1024*1024;
   static final String HEADER="event,epochMillis,monotonicNanos,type,record,eventObject,last,size,bid,ask,bidSize,askSize,quoteSequence,direction\n";
   private static volatile Session session;
@@ -16,7 +16,7 @@ final class DebugLogV0319 {
     final ArrayBlockingQueue<String> queue=new ArrayBlockingQueue<>(CAPACITY);
     final AtomicLong events=new AtomicLong(),dropped=new AtomicLong();
     volatile boolean closing;volatile String error="none";final Thread worker;
-    Session(Path prefix,int limit){this.prefix=prefix;this.limit=limit;worker=new Thread(this::write,"twstapecolor-debug-v0319");worker.setDaemon(true);}
+    Session(Path prefix,int limit){this.prefix=prefix;this.limit=limit;worker=new Thread(this::write,"twstapecolor-debug-v0320");worker.setDaemon(true);}
     Path file(int slot){return Path.of(prefix+"-"+slot+".csv");}
     void write(){
       int slot=0,bytes=0;BufferedWriter out=null;
@@ -42,7 +42,7 @@ final class DebugLogV0319 {
     try(var out=Files.newBufferedWriter(Path.of(prefix+"-0.csv"))){out.write(HEADER);}
     Session next=new Session(prefix,limit);session=next;next.worker.start();
   }
-  static void event(String kind,Object record,Object event,double last,double size,LiveTapeDataV0319.Quote q,int direction){
+  static void event(String kind,Object record,Object event,double last,double size,LiveTapeDataV0320.Quote q,int direction){
     Session s=session;if(s==null)return;
     long seq=s.events.incrementAndGet();
     String line=seq+","+System.currentTimeMillis()+","+System.nanoTime()+","+kind+","+Integer.toHexString(System.identityHashCode(record))+","+(event==null?"":Integer.toHexString(System.identityHashCode(event)))+","+last+","+size+","+(q==null?"NaN,NaN,NaN,NaN,0":q.bid()+","+q.ask()+","+q.bidSize()+","+q.askSize()+","+q.sequence())+","+direction+"\n";
