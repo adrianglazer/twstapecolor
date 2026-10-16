@@ -1,16 +1,16 @@
-# twstapecolor v0.3.18
+# twstapecolor v0.3.19
 
 Experimental Time & Sales **row backgrounds** for Interactive Brokers Trader Workstation (TWS) on Linux. Unofficial; not affiliated with or supported by Interactive Brokers. It does not place orders or use account credentials.
 
 ## Before and after
 
-Actual screen captures from TWS 10.51.1c on 2026-10-15, with only **Time, Last and Size** visible.
+Actual TCRT screen captures from TWS on 2026-10-16, with only **Time, Last and Size** visible.
 
-![Before and after: native TWS beside twstapecolor v0.3.14, showing full-row bid/ask backgrounds](twstapecolor.png)
+![Before and after: native TWS beside twstapecolor v0.3.19, showing full-row bid/ask backgrounds](twstapecolor.png)
 
 Green marks trades at or above the captured ask; red marks trades at or below the captured bid. Inside-spread and unknown trades keep their native background. Larger trades receive stronger shading across all three columns.
 
-The tape was live, so these captures show different moments and different trades. The graphic uses the original tape-only captures, enlarged 2× without changing their pixels; the left image also verifies that `stop` restores the native appearance. This comparison records v0.3.14; v0.3.16 uses the brighter defaults and wider size shading described below.
+The tape was live, so these captures show different moments and different trades. The graphic uses actual tape-only screen captures, enlarged 2× with nearest-neighbor scaling; the left image was taken after `stop` restored the native appearance. The right image shows v0.3.19 with the current brighter defaults and adaptive size shading. Original crops are retained under `docs/screenshots/`.
 
 ## Behavior
 
@@ -74,7 +74,21 @@ Use TWS's normal linked symbol selectors. The tool follows the existing link con
 
 v0.3.16 could throw a Swing sorter exception during a symbol reset, aborting the linked-window update and leaving Level 2 on the old symbol with an empty tape. v0.3.18 fixes the native row-event handling and stale repaint-index path. Restart TWS when upgrading from an older active agent, as described above. If a previous version has already stalled a switch, start from fresh native TWS and reselect the intended symbol before enabling the current version.
 
-Repeated live 1810/9988 SEHK switches, empty/reset notification stress, new history arrivals and per-symbol color checks are documented in the [symbol-switch verification report](QA-REPORT-2026-10-16.md). The tested Hong Kong session had no depth subscription, so Level 2 contract/quote linkage was checked; live depth-book rows were unavailable.
+Repeated live 1810/9988 SEHK switches, empty/reset notification stress, new history arrivals and per-symbol color checks are documented in the [symbol-switch verification report](QA-REPORT-2026-10-16.md). The earlier Hong Kong sample had no depth subscription. The later US premarket verification below includes populated XLAB and TCRT depth books.
+
+## Reading the prints: price response and absorption
+
+Green means a print occurred at or above the captured preceding ask; red means at or below the bid. Every execution has a buyer and a seller. These colors suggest which side crossed the spread; they do not measure the number of buyers versus sellers, identify who initiated an order with certainty, or predict the next price. A marketable limit order can also cross the spread. See [Investor.gov's order-type explanation](https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14) and [CME's explanation of resting and aggressing orders](https://www.cmegroup.com/education/matching-algorithm-overview).
+
+**Many green prints with little upward progress can be consistent with sell-side absorption:** buyers keep executing against available sell liquidity, while enough offers remain or replenish to hold the price. For example, repeated ask-side executions at 2.88 while the ask stays at 2.88 are compatible with passive sellers meeting that demand. The mirror case is repeated red prints at a bid that holds against selling. These are interpretations of price response, not facts that this tool detects. If the resting liquidity is eventually exhausted, price can continue through the level; absorption does not guarantee a reversal.
+
+For study or paper trading, compare executed **share volume** at a price with the movement of the bid/ask and subsequent trades. Watch whether the offer repeatedly refills, whether the bid remains supported or steps lower, and whether a move through the level holds or quickly returns. A subsequent lower bid after repeated ask-side prints supports a failed-upward-move interpretation, but a row color alone is insufficient evidence. Replenishment can be consistent with hidden liquidity; [Nasdaq describes this as a clue when studying order flow](https://www.nasdaq.com/articles/data/nasdaq-totalview). A visible quote is a snapshot, and displayed size can change through cancellations and new orders as well as executions.
+
+**Absorption and exhaustion differ:** absorption involves continued executions meeting opposing liquidity; exhaustion describes activity fading. A quiet tape alone cannot distinguish them or establish who holds inventory. The tool does not calculate footprint delta, detect icebergs, identify a specific absorbing seller, or implement an entry/exit strategy.
+
+Use price location, liquidity, spread, execution costs and a separately defined risk limit when evaluating any setup. Premarket liquidity and wide spreads make interpretation especially uncertain. Local quote/trade delivery can differ from exchange execution order; trades inside the spread stay neutral, and backfills have no verified preceding quote. A correct green print can be followed immediately by falling prices. No reversal, profit, or aggressor identity is established by the color.
+
+Size shading is **relative to the largest currently visible print**, not an absolute volume signal. A darker row is not necessarily larger than a row seen earlier after the visible maximum changed. Count shares and compare price levels over a defined interval rather than counting green rows or comparing shades across time. Only up to 50 retained trades are shown, which is too short a window to establish absorption on its own.
 
 ## Diagnostics and debug opt-in
 
@@ -84,6 +98,30 @@ Repeated live 1810/9988 SEHK switches, empty/reset notification stress, new hist
 - `dump --pid PID`: deliberately saves in-memory target bytecode to a `.class` file.
 
 Commands print to the console. Normal commands leave no persistent reports: a short-lived response file in `build/` is removed after use (a forcibly killed launcher may leave it behind). Add `--debug` to any command to retain `logs/twstapecolor-<command>-<pid>-<timestamp>.txt` inside the project. All persistent diagnostics, including requested bytecode dumps, stay in the project; `logs/`, `work/` and `*.log` are ignored by Git. Inspect diagnostic data before sharing; it may contain market data and symbol information. `dump` writes its requested file even without debug. The launcher rebuilds the agent JAR before each command.
+
+### Record and check live market events (v0.3.19)
+
+`start --debug` also starts an asynchronous CSV trace of the **watched tape instruments' changed top-of-book snapshots and incoming trade callbacks**. It is not a full market feed, depth-book archive, or historical export. Each row contains a session event number, local epoch milliseconds and monotonic nanoseconds, type `Q`/`T`, market-record identity, trade-object identity, Last/Size, frozen bid/ask prices and sizes, quote sequence and calculated direction (`1` ask, `-1` bid, `0` neutral). Record identities distinguish instruments within that JVM; they are not ticker symbols or exchange order IDs. Unknown quotes are recorded explicitly. Unchanged quote notifications are deduplicated. Old/backfilled table rows are not converted into invented live events.
+
+```bash
+./twstapecolor start --pid 12345 --debug
+# Observe the desired live session; status gives the exact CSV prefix and loss/error counters.
+./twstapecolor status --pid 12345 --debug
+./twstapecolor stop --pid 12345 --debug
+./twstapecolor status --pid 12345 --debug
+# Python 3 is needed only for this offline check. Supply all segments from ONE start session:
+python3 tools/verify_debug.py logs/twstapecolor-start-12345-YYYYMMDD-HHMMSS-SSS.txt-live-*.csv
+```
+
+The writer has a 4,096-entry nonblocking queue and four rotating CSV segments, each capped at 4 MiB (about 16 MiB per start session). Once full, the oldest segment is overwritten. Slow or failed disk writes cannot block the feed callback on disk I/O; queue overflow increments `dropped`, and writer failures appear in `status`. The trace can therefore be incomplete: check both counters, and do not treat a truncated capture as proof. Repeated starts create separate bounded sessions; old sessions remain until you remove them. `stop`, `probe`, or a new start without `--debug` ends capture; `status --debug` only retains that command's report. Stop normally drains the queue; a stalled filesystem has a bounded wait and can leave a draining daemon writer.
+
+The independent verifier orders retained records, detects missing/duplicate event numbers, checks each trade's quote against its nearest preceding logged quote for that market record (including sizes and quote sequence), and recalculates direction with a decimal comparison. It returns a failing exit status for mismatches, incomplete captures, or no trades. It checks **saved classification data**; the separate live pixel audit also checks actual RGB blending and renderer restoration. A pass verifies agreement with locally observed TWS data, not provider accuracy, exchange sequencing, latency, or true aggressor identity. Captures contain market data, remain ignored by Git, and should be reviewed before sharing.
+
+## US premarket verification — v0.3.19
+
+On 2026-10-16, the live US session was checked on XLAB and the requested TCRT, with populated native Level 2 books on both sides. Tests cover linked symbol changes from tape and depth, genuinely new history events, captured bid/ask prices and sizes, independent direction and painted-pixel calculations, native Level 2 isolation, repeated stop/start restoration, saved-debug replay, and short resource samples. WETO's linked selectors and history agreed, but no executions arrived in its sample, so its trade-accuracy check was inconclusive. The complete saved trace matched all 289 trade callbacks; separate live audits checked 148 trades and 7,269 colored-cell paints, with zero mismatches. Three stop/start cycles restored all 42 compared native properties and method fingerprints. See the [US verification report](QA-US-2026-10-16.md) for exact counts, preliminary diagnostic failures, resource observations, and limits.
+
+The Java suite passes 56,558 checks with `-Xverify:all`, including new logger ordering, flush, disabled-write, rotation, destination-failure and worker-cleanup tests under a 64 MiB heap. Six Python tests exercise the offline verifier, including deliberately corrupted direction/size data, instrument mismatch and missing events. Run them with `python3 -m unittest discover -s tests -p 'test_*.py'`. The MIT license is unchanged. The tape-only README comparison has been refreshed from this session.
 
 ## Validation and limits
 
@@ -104,9 +142,9 @@ For opt-in reproducible live tests, see [tests/live](tests/live/README.md). Norm
 
 **Live verification (2026-10-15, TWS 10.51.1c):** attached to the running TWS, confirmed null cell values and native event accessors, and verified live bid/ask prices and quote sizes. Observed both green ask-side and red bid-side full-row backgrounds in actual screen captures of the existing three-column tape, with variable intensity. Independent audits compared native quote/trade values and actual background pixels. The v0.3.14 audits matched all 27 live trades and 3,315 colored cells; the earlier baseline matched 93 trades and 2,280 colored cells. A further arrival-book check matched all five sampled quote-price and quote-size snapshots. Three repeated stop/start cycles restored all 42 compared table properties and normalized method fingerprints, with zero remaining agent calls in the three target methods. See the [expanded QA report](QA-REPORT-2026-10-15.md) for counts, fixes and limits. Raw diagnostic captures stay in local ignored directories; selected market-data-only captures are included under `docs/screenshots/`.
 
-`./test.sh` also includes native-shaped null-cell model tests for frozen quote snapshots, instrument isolation, empty notification arrays, missing-value sentinels, historical neutrality, 50-trade limiting, stop cleanup and floating-point quote rounding. All 56,540 automated checks pass with `-Xverify:all`.
+`./test.sh` also includes native-shaped null-cell model tests for frozen quote snapshots, instrument isolation, empty notification arrays, missing-value sentinels, historical neutrality, 50-trade limiting, stop cleanup and floating-point quote rounding. All 56,558 automated Java checks pass with `-Xverify:all`.
 
-Other TWS versions remain untested. Native class names and accessor signatures may change. Retention remains controlled by TWS: in the tested layout its native history model contained 17 trade events, so the tool could show 17 retained trades, capped at 50. It does not manufacture missing history. The tape-only comparison above records v0.3.14. The [v0.3.16 verification report](QA-REPORT-2026-10-15.md) documents the current shades and Level 2 isolation.
+Other TWS versions remain untested. Native class names and accessor signatures may change. Retention remains controlled by TWS: in the tested layout its native history model contained 17 trade events, so the tool could show 17 retained trades, capped at 50. It does not manufacture missing history. The tape-only comparison above records v0.3.19. The [v0.3.16 verification report](QA-REPORT-2026-10-15.md) documents the current shades and Level 2 isolation.
 
 For `VerifyError`, restoration failure, freezes or unexpected UI behavior, stop testing and restart TWS. Report TWS/Java versions and opt-in diagnostic output. If rows remain unfiltered, check required columns and the existing-sorter limitation. If rows are filtered but neutral, inspect `feedHooks`, `quoteEvents`, `tradeEvents`, and `dataErrors` in `status`. Newly captured trades require usable bid/ask data; older unobserved trades intentionally stay neutral.
 

@@ -6,3 +6,7 @@ lib/*.tmp
 work/
 logs/
 *.log
+
+# Python offline-verifier caches
+__pycache__/
+*.pyc

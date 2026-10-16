@@ -58,3 +58,8 @@ On 2026-10-16, v0.3.16 reproduced the reported split-symbol/empty-history failur
 The final build passed 11 live observation phases from both selectors, including same-symbol and rapid switches. Both headers and settled event instruments matched, and fresh history advanced after every phase. Independent post-switch audits matched 44 incoming trades and 3,858 colored-cell checks. Three stop/start cycles restored all 42 checked properties/fingerprints. The full suite passes 56,540 checks, including 1,000 seeded reset/selection cases.
 
 The HK session had no depth subscription, so actual depth rows/colors could not be verified; selected-contract and quote linkage were checked. See the [2026-10-16 verification report](QA-REPORT-2026-10-16.md) for evidence, resource observations and limits.
+
+
+## v0.3.19 — US premarket, 2026-10-16
+
+Fresh TWS, XLAB and user-requested TCRT, with real depth rows on both sides. Independent live quote/size/direction and RGB checks, linked tape/depth switches, three exact stop/start restorations, full debug CSV replay and short native/enabled resource intervals are documented in [QA-US-2026-10-16.md](QA-US-2026-10-16.md). The README image now uses actual TCRT before/after tape-only captures with the current palette. The earlier HK report remains historical and did not verify subscribed depth rows.

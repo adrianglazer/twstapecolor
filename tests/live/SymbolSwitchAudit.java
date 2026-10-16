@@ -23,13 +23,13 @@ public final class SymbolSwitchAudit {
  static String symbol(Object event)throws Exception{if(event==null)return "unknown";Object instrument=get(event,"ar");if(instrument==null)return "unknown";String value=instrument.toString();var m=java.util.regex.Pattern.compile("(?:^|\\s)Symbol=([^\\s]+)").matcher(value);return m.find()?m.group(1):"unknown";}
  public static void agentmain(String args,Instrumentation ignored)throws Exception{
   if(active)throw new IllegalStateException("audit active");String[] p=args.split("\\|",-1);root=Path.of(p[0]);Files.createDirectories(root);symbol=p[1];version=p[2];int seconds=Integer.parseInt(p[3]);
-  if(!Set.of("1810","9988").contains(symbol)||seconds<1||seconds>300)throw new IllegalArgumentException();
+  if(!Set.of("1810","9988","XLAB","WETO","TCRT").contains(symbol)||seconds<1||seconds>300)throw new IllegalArgumentException();
   active=true;samples=readySamples=headerMismatches=historyMismatches=historyAdvances=errors=transitionSamples=transitionalHistoryRows=settledSample=0;ready=false;previous=null;headers.clear();captured.clear();history=current=null;rows=new StringBuilder();
   SwingUtilities.invokeAndWait(()->{for(Window w:Window.getWindows())if(w.isShowing())find(w);javax.swing.Timer timer=new javax.swing.Timer(250,e->{sample();if(samples>=seconds*4||(readySamples>=8&&historyAdvances>=1&&captured.size()>=2)){((javax.swing.Timer)e.getSource()).stop();finish();}});timer.start();});
  }
  static void sample(){samples++;try{
   if(history==null||current==null||headers.size()<2)throw new IllegalStateException("missing native tape/depth panels");
-  boolean matching=headers.stream().allMatch(h->String.valueOf(h.getSelectedItem()).startsWith(symbol+" "));
+  boolean matching=headers.stream().allMatch(h->(String.valueOf(h.getSelectedItem()).equals(symbol)||String.valueOf(h.getSelectedItem()).startsWith(symbol+" ")));
   int wrongHistory=0;for(int r=0;r<history.getModel().getRowCount();r++)if(!symbol.equals(symbol(get(history.getModel(),"e",r,-1))))wrongHistory++;
   boolean currentMatches=current.getModel().getRowCount()>0&&symbol.equals(symbol(get(current.getModel(),"e",0,-1)));
   // Combo captions can change before TWS has completed its asynchronous native

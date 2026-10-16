@@ -12,19 +12,24 @@ public final class Level2IsolationAudit {
  static boolean active;static Path root;static int samples,paired,changed,foreignWrappers,errors,nativeColoredRows;
  static final List<JTable> depth=new ArrayList<>(),tapes=new ArrayList<>();
  static final Map<JTable,Object> sorters=new IdentityHashMap<>();
- static int sorterChanges;static StringBuilder details;
+ static int sorterChanges,emptyTables;static StringBuilder details;
  static void find(Component c){if(c instanceof JTable t&&t.isShowing()){if(t.getClass().getName().equals("jbook.OneSideBookTable"))depth.add(t);else if(t.getClass().getName().equals("feature.tape.ui.aN"))tapes.add(t);}if(c instanceof Container box)for(Component child:box.getComponents())find(child);}
  static BufferedImage paint(JTable t){var image=new BufferedImage(t.getWidth(),t.getHeight(),BufferedImage.TYPE_INT_RGB);Graphics2D g=image.createGraphics();try{t.paint(g);}finally{g.dispose();}return image;}
  public static void agentmain(String args,Instrumentation ignored)throws Exception{
   if(active)throw new IllegalStateException("audit active");String[] p=args.split("\\|",-1);root=Path.of(p[0]);Files.createDirectories(root);int duration=Integer.parseInt(p[1]);
-  active=true;samples=paired=changed=foreignWrappers=errors=nativeColoredRows=sorterChanges=0;depth.clear();tapes.clear();sorters.clear();details=new StringBuilder();
+  active=true;samples=paired=changed=foreignWrappers=errors=nativeColoredRows=sorterChanges=emptyTables=0;depth.clear();tapes.clear();sorters.clear();details=new StringBuilder();
   SwingUtilities.invokeAndWait(()->{
    for(Window w:Window.getWindows())find(w);for(JTable t:depth)sorters.put(t,t.getRowSorter());
    javax.swing.Timer timer=new javax.swing.Timer(1000,e->{sample();if(samples>=duration){((javax.swing.Timer)e.getSource()).stop();finish();}});timer.start();
   });
  }
  static void sample(){samples++;try{
+  // Symbol switches replace/retire depth tables. Observe the currently visible
+  // panels rather than retaining a detached zero-height component.
+  depth.clear();tapes.clear();for(Window w:Window.getWindows())if(w.isShowing())find(w);
+  sorters.keySet().retainAll(depth);for(JTable t:depth)sorters.putIfAbsent(t,t.getRowSorter());
   for(JTable t:depth){
+   if(t.getWidth()<=0||t.getHeight()<=0||t.getRowCount()==0){emptyTables++;continue;}
    BufferedImage before=paint(t);
    for(JTable tape:tapes)for(int k=0;k<3;k++)paint(tape);
    BufferedImage after=paint(t);int different=0,colors=0;
@@ -40,6 +45,6 @@ public final class Level2IsolationAudit {
  }catch(Throwable e){errors++;try{Files.writeString(root.resolve("errors.txt"),e+"\n",StandardOpenOption.CREATE,StandardOpenOption.APPEND);}catch(Exception ignored){}}}
  static void finish(){active=false;try{
   Files.writeString(root.resolve("pairs.csv"),"sample,table,differentPixels,coloredRows\n"+details);
-  Files.writeString(root.resolve("summary.txt"),"samples="+samples+"\ndepthTables="+depth.size()+"\ntapeTables="+tapes.size()+"\npairedRenders="+paired+"\nchangedRenders="+changed+"\nnativeColoredRows="+nativeColoredRows+"\nforeignWrappers="+foreignWrappers+"\nsorterChanges="+sorterChanges+"\nerrors="+errors+"\n");
+  Files.writeString(root.resolve("summary.txt"),"samples="+samples+"\ndepthTables="+depth.size()+"\ntapeTables="+tapes.size()+"\npairedRenders="+paired+"\nchangedRenders="+changed+"\nnativeColoredRows="+nativeColoredRows+"\nforeignWrappers="+foreignWrappers+"\nsorterChanges="+sorterChanges+"\nemptyTables="+emptyTables+"\nerrors="+errors+"\n");
  }catch(Exception ignored){}finally{depth.clear();tapes.clear();sorters.clear();details=null;}}
 }

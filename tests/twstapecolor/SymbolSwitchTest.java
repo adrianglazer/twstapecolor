@@ -15,7 +15,7 @@ public final class SymbolSwitchTest {
   SwingUtilities.invokeAndWait(()->{
    model=new feature.tape.ui.aT(new Object[][]{{101,100,null,null},{null,null,100,101}});
    // Registered before JTable, as an earlier member of TWS's linked callback chain.
-   model.addTableModelListener(e->downstream++);tape=new feature.tape.ui.aN(model);TapeViewV0318.schedule(tape,()->true);
+   model.addTableModelListener(e->downstream++);tape=new feature.tape.ui.aN(model);TapeViewV0319.schedule(tape,()->true);
   });flush();
   for(int cycle=0;cycle<100;cycle++){
    SwingUtilities.invokeAndWait(()->{
@@ -29,7 +29,7 @@ public final class SymbolSwitchTest {
    });flush();
    SwingUtilities.invokeAndWait(()->{
     check(tape.getRowCount()==1,"new symbol history never repopulated");
-    check(TapeViewV0318.print(tape,0).direction()==1,"new instrument did not get its own preceding quote");
+    check(TapeViewV0319.print(tape,0).direction()==1,"new instrument did not get its own preceding quote");
     int before=downstream;model.fireTableRowsInserted(0,0);
     check(downstream==before+1,"duplicate insertion notification interrupted linked windows");
     replaceSilently(new Object[0][]);model.fireTableRowsDeleted(0,1);model.fireTableRowsDeleted(0,0);
@@ -40,20 +40,20 @@ public final class SymbolSwitchTest {
     model.fireTableRowsUpdated(0,16);
    });flush();
    SwingUtilities.invokeAndWait(()->{
-    check(tape.getRowCount()==1&&TapeViewV0318.print(tape,0).direction()==-1,"oversized reset range broke live bid rows");
+    check(tape.getRowCount()==1&&TapeViewV0319.print(tape,0).direction()==-1,"oversized reset range broke live bid rows");
    });
   }
   SwingUtilities.invokeAndWait(()->{
-   TapeViewV0318.restoreAll();check(tape.getRowSorter()==null,"stop restores native sorter after repeated switches");
+   TapeViewV0319.restoreAll();check(tape.getRowSorter()==null,"stop restores native sorter after repeated switches");
    var old=new LiveDataTest.Event(new LiveDataTest.Instrument(new LiveDataTest.Record(new LiveDataTest.Book(10,11,1,1))),11,100);
-   var current=new feature.tape.data.k(old);JTable summary=new JTable(current);TapeViewV0318.schedule(summary,()->true);
+   var current=new feature.tape.data.k(old);JTable summary=new JTable(current);TapeViewV0319.schedule(summary,()->true);
    summary.putClientProperty("test.current",current);tape=summary;
   });flush();
   SwingUtilities.invokeAndWait(()->{
    check(tape.getRowSorter()==null,"Current summary must retain native row handling");
    var current=(feature.tape.data.k)tape.getClientProperty("test.current");
    current.fireTableRowsInserted(0,0);current.fireTableRowsInserted(0,0);
-   check(tape.getRowCount()==1,"Current duplicated notifications broke summary");TapeViewV0318.restoreAll();
+   check(tape.getRowCount()==1,"Current duplicated notifications broke summary");TapeViewV0319.restoreAll();
   });
   System.out.println("Symbol-switch tests passed ("+checks+" checks)");
  }
