@@ -12,7 +12,7 @@ import javax.swing.table.*;
 import org.objectweb.asm.*;
 
 /** Injects one method-exit hook into TWS's generic renderer selector; fails closed for non-tape tables. */
-public final class HookV0316 {
+public final class HookV0318 {
   private static final String TARGET="jtable/basic/by";
   private static final Set<String> MODELS=Set.of("feature.tape.ui.aT","feature.tape.data.k");
   private static volatile Color askColor=new Color(22,131,74), bidColor=new Color(184,59,75);
@@ -37,18 +37,18 @@ public final class HookV0316 {
       case "probe": {
         if(!inst.isRetransformClassesSupported())throw new UnsupportedOperationException("Retransformation not supported");
         install(inst); enabled=false;visualTest=false;probeMode=true;
-        onEdt(TapeViewV0316::restoreAll);
+        onEdt(TapeViewV0318::restoreAll);
         samples.clear();probeSeen.set(0);probeStored.set(0);
         SwingUtilities.invokeLater(()->{for(Window w:Window.getWindows())repaintTapes(w);});
         return "Probe active (NO COLOR CHANGES). Wait for tape activity, then run report --pid. Samples capped at "+MAX_SAMPLES;
       }
-      case "status": return LiveTapeDataV0316.status()+" feedHooks="+FeedHookV0316.installed()+" probeMode="+probeMode+" probeSeen="+probeSeen+" probeStored="+probeStored+" enabled="+enabled+" visualTest="+visualTest+" injected="+injected+" rendererSelections="+rendererSelections+" rendererCalls="+renderCalls+" visualPaintCalls="+paintCalls+" green="+greenCalls+" red="+redCalls+" neutral="+neutralCalls+" askColor="+hex(askColor)+" bidColor="+hex(bidColor);
+      case "status": return LiveTapeDataV0318.status()+" feedHooks="+FeedHookV0318.installed()+" probeMode="+probeMode+" probeSeen="+probeSeen+" probeStored="+probeStored+" enabled="+enabled+" visualTest="+visualTest+" injected="+injected+" rendererSelections="+rendererSelections+" rendererCalls="+renderCalls+" visualPaintCalls="+paintCalls+" green="+greenCalls+" red="+redCalls+" neutral="+neutralCalls+" askColor="+hex(askColor)+" bidColor="+hex(bidColor);
       case "dump": return dumpLoadedClass(inst);
       case "stop": {
         enabled=false;visualTest=false;probeMode=false;
-        String feedRestored=FeedHookV0316.stop();
-        onEdt(TapeViewV0316::restoreAll);
-        LiveTapeDataV0316.clear();
+        String feedRestored=FeedHookV0318.stop();
+        onEdt(TapeViewV0318::restoreAll);
+        LiveTapeDataV0318.clear();
         String restored=detach();
         return "Disabled. "+restored+" "+feedRestored+" Reopen or restart TWS if the interface behaves unexpectedly.";
       }
@@ -59,7 +59,7 @@ public final class HookV0316 {
         } else if(parts.length!=1) throw new IllegalArgumentException("Invalid command arguments");
         if(!inst.isRetransformClassesSupported())throw new UnsupportedOperationException("TWS JVM does not support class retransformation");
         boolean wasInjected=injected;
-        try{install(inst);FeedHookV0316.install(inst);}
+        try{install(inst);FeedHookV0318.install(inst);}
         catch(Throwable failure){if(!wasInjected)detach();throw failure;}
         probeMode=false;
         visualTest=action.equals("test-paint");enabled=true;
@@ -104,7 +104,7 @@ public final class HookV0316 {
     try {inst.retransformClasses(target);} finally {inst.removeTransformer(capture);}
     byte[] bytes=snapshot.get();
     if(bytes==null)throw new IllegalStateException("JVM did not provide target class bytes");
-    Path agent=Path.of(HookV0316.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+    Path agent=Path.of(HookV0318.class.getProtectionDomain().getCodeSource().getLocation().toURI());
     Path logs=agent.getParent().getParent().resolve("logs");Files.createDirectories(logs);
     Path output=logs.resolve("twstapecolor-live-by-"+ProcessHandle.current().pid()+".class");
     Files.write(output,bytes);
@@ -160,7 +160,7 @@ public final class HookV0316 {
                     // The target's StackMapTable marks slots 1 and 2 dead at the return.
                     // Never ILOAD those arguments here: this was the VerifyError trigger.
                     super.visitVarInsn(Opcodes.ALOAD,0);
-                    super.visitMethodInsn(Opcodes.INVOKESTATIC,"twstapecolor/HookV0316","wrap","(Ljavax/swing/table/TableCellRenderer;Ljava/lang/Object;)Ljavax/swing/table/TableCellRenderer;",false);
+                    super.visitMethodInsn(Opcodes.INVOKESTATIC,"twstapecolor/HookV0318","wrap","(Ljavax/swing/table/TableCellRenderer;Ljava/lang/Object;)Ljavax/swing/table/TableCellRenderer;",false);
                   }
                   super.visitInsn(opcode);
                 }
@@ -258,9 +258,9 @@ public final class HookV0316 {
   public static TableCellRenderer wrap(TableCellRenderer original,Object receiver){
     while(original instanceof TapeRenderer prior)original=prior.delegate;
     if(!(receiver instanceof JTable table)||!(enabled||probeMode)||original==null||!target(table))return original;
-    if(enabled)TapeViewV0316.schedule(table,()->enabled);
+    if(enabled)TapeViewV0318.schedule(table,()->enabled);
     rendererSelections.incrementAndGet();
-    return TapeViewV0316.renderer(table,original);
+    return TapeViewV0318.renderer(table,original);
   }
   private static void repaintTapes(Component component){
     if(component instanceof JTable table&&target(table))table.repaint();
@@ -272,7 +272,7 @@ public final class HookV0316 {
   static final class TapeRenderer implements TableCellRenderer {
     private final TableCellRenderer delegate;
     private final java.lang.ref.WeakReference<JTable> owner;
-    private final TintRendererV0316 tintRenderer=new TintRendererV0316();
+    private final TintRendererV0318 tintRenderer=new TintRendererV0318();
     TapeRenderer(TableCellRenderer r,JTable table){delegate=r;owner=new java.lang.ref.WeakReference<>(table);}
     @Override public Component getTableCellRendererComponent(JTable table,Object value,boolean selected,boolean focus,int row,int col){
       // Native renderers may be shared/cached across unrelated tables. Never
@@ -286,13 +286,13 @@ public final class HookV0316 {
       try {
         // Native TWS renderers fetch the event directly by row, ignoring JTable's
         // normal value argument. Translate the private filtered view explicitly.
-        int nativeRow=LiveTapeDataV0316.supports(table.getModel())?table.convertRowIndexToModel(row):row;
+        int nativeRow=LiveTapeDataV0318.supports(table.getModel())?table.convertRowIndexToModel(row):row;
         comp=delegate.getTableCellRendererComponent(table,value,selected,focus,nativeRow,col);
       }
       finally {rendering.set(false);}
       if(probeMode) {recordProbe(table,value,comp,delegate,row,col,selected);return comp;}
       if(!enabled||selected)return comp;
-      TapeViewV0316.Print print=TapeViewV0316.print(table,row);
+      TapeViewV0318.Print print=TapeViewV0318.print(table,row);
       int direction=visualTest?((row&1)==0?1:-1):print.direction();
       if(direction==0){neutralCalls.incrementAndGet();return comp;}
       Color tint=direction>0?askColor:bidColor;

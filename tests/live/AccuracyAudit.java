@@ -143,7 +143,7 @@ public final class AccuracyAudit {
         for(int c=0;c<table.getColumnCount();c++){
           if(table.isCellSelected(r,c)){selected++;continue;}
           Component comp=table.prepareRenderer(table.getCellRenderer(r,c),r,c);
-          boolean wrapped=comp.getClass().getName().equals("twstapecolor.TintRendererV0316");
+          boolean wrapped=comp.getClass().getName().equals("twstapecolor.TintRendererV0318");
           Component original=wrapped?(Component)field(comp,"delegate"):comp;
           Color background=original.getBackground();boolean opaque=original instanceof JComponent jc&&jc.isOpaque();Container parent=original.getParent();Rectangle bounds=original.getBounds();
           int width=table.getColumnModel().getColumn(c).getWidth(),height=table.getRowHeight(r);

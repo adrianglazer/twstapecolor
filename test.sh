@@ -17,3 +17,6 @@ java -Xverify:all -Djava.awt.headless=true -cp build/classes:build/test-classes:
 java -Xverify:all -Djava.awt.headless=true -cp build/classes:build/test-classes:lib/asm-9.8.jar twstapecolor.RepaintStabilityTest
 java -Xmx64m -Xverify:all -Djava.awt.headless=true -cp build/classes:build/test-classes:lib/asm-9.8.jar twstapecolor.IsolationTest
 java -Xverify:all -Djava.awt.headless=true -cp build/classes:build/test-classes:lib/asm-9.8.jar twstapecolor.SizeAndPaintTest
+java -Xmx64m -Xverify:all -Djava.awt.headless=true -cp build/classes:build/test-classes:lib/asm-9.8.jar twstapecolor.SymbolSwitchTest
+java -Xmx64m -Xverify:all -Djava.awt.headless=true -cp build/classes:build/test-classes:lib/asm-9.8.jar twstapecolor.SymbolQuoteTest
+java -Xmx64m -Xverify:all -Djava.awt.headless=true -cp build/classes:build/test-classes:lib/asm-9.8.jar twstapecolor.NativeResetStressTest

@@ -5,7 +5,7 @@ import java.time.*;
 import java.time.format.*;
 import java.util.Set;
 public final class Main {
-  static final String VERSION="v0.3.16";
+  static final String VERSION="v0.3.18";
   public static void main(String[] a) throws Exception {
     if(a.length==1 && (a[0].equals("--version")||a[0].equals("version"))){System.out.println("twstapecolor "+VERSION+" (experimental bytecode hook)");return;}
     if(a.length<3 || !a[1].equals("--pid") || !Set.of("test-paint","start","status","stop","dump","probe","report").contains(a[0])) {
