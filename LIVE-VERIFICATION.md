@@ -67,3 +67,11 @@ Fresh TWS, XLAB and user-requested TCRT, with real depth rows on both sides. Ind
 ## v0.3.20 — launcher discovery checks
 
 The full Java suite passed 56,582 checks, including 24 exact-match discovery and CLI checks; the six Python verifier tests also passed. Read-only discovery identified the same actual TWS PID as `jcmd -l`, without loading or changing an agent. With no TWS visible to the launcher, `java -jar build/twstapecolor.jar status` printed the documented no-instance message and returned exit code 1. Multiple candidates are refused in tests, with their PIDs listed; explicit `--pid` remains supported. No Windows live tests or new market-color audits were performed for this launcher change; the v0.3.19 market verification above remains historical. Runtime helpers advance to V0320 to isolate upgrades from already loaded versions.
+
+## Distribution packaging — 2026-10-19
+
+Added the shared Linux/Windows `dist/twstapecolor-v0.3.20.jar`, its SHA-256 checksum, distribution instructions, and Windows double-click start/stop command scripts. Removed the old root `twstapecolor` Bash executable and updated active instructions and CLI help to use Java directly. The distribution keeps its versioned filename so later commands do not copy over an agent JAR that Windows may hold open.
+
+The artifact includes the MIT and ASM BSD-3-Clause license texts, ASM 9.8, the executable Main-Class, and the Agent-Class/retransformation manifest. Its 34 application class files target Java 21 and match the freshly compiled sources; no native or proprietary TWS binaries are included. Linux `-Xverify:all` version and no-instance CLI checks passed; the no-instance path returned 1. The full 56,582-check Java suite and six Python verifier tests passed. Packaging shell scripts passed syntax checks, and the JAR checksum was verified.
+
+The Windows scripts are ASCII with CRLF line endings. They locate Java through JAVA_HOME/PATH, check jdk.attach and Java 21 class compatibility, explain a missing/old JDK, retain console messages, and support default start or explicit CLI arguments. They have been reviewed but not run under Windows; Windows TWS attachment/rendering remains untested. No live TWS state was changed for this packaging task. Raw checks remain in ignored `work/` files.

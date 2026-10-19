@@ -78,8 +78,8 @@ public final class Main {
     return matches.get(0).pid();
   }
   private static void usage(){
-    System.err.println("Usage: ./twstapecolor start [--pid PID] [--ask-color '#RRGGBB'] [--bid-color '#RRGGBB'] [--debug]");
-    System.err.println("       ./twstapecolor status|stop|test-paint|probe|report|dump [--pid PID] [--debug]");
+    System.err.println("Usage: java -jar twstapecolor-v0.3.20.jar start [--pid PID] [--ask-color '#RRGGBB'] [--bid-color '#RRGGBB'] [--debug]");
+    System.err.println("       java -jar twstapecolor-v0.3.20.jar status|stop|test-paint|probe|report|dump [--pid PID] [--debug]");
     System.exit(2);
   }
 }

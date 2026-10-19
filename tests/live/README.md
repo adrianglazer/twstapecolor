@@ -6,7 +6,7 @@ From the project root:
 
 ```bash
 bash tests/live/build.sh
-./twstapecolor start --pid PID
+java --add-modules jdk.attach -jar build/twstapecolor.jar start --pid PID
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/AccuracyAudit.jar" "$PWD/work/logs/my-audit|V0320|45"
 ```
 
@@ -22,11 +22,11 @@ The decimal oracle normalizes binary encoding noise to 12 significant digits. Th
 For restoration, stop the agent and save a clean baseline:
 
 ```bash
-./twstapecolor stop --pid PID
+java --add-modules jdk.attach -jar build/twstapecolor.jar stop --pid PID
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/StateAudit.jar" "$PWD/work/logs/native|baseline"
-./twstapecolor start --pid PID
+java --add-modules jdk.attach -jar build/twstapecolor.jar start --pid PID
 # Exercise the tape, then:
-./twstapecolor stop --pid PID
+java --add-modules jdk.attach -jar build/twstapecolor.jar stop --pid PID
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/StateAudit.jar" "$PWD/work/logs/cycle1|check"
 ```
 
@@ -53,7 +53,7 @@ Use a freshly restarted TWS when upgrading from v0.3.15 or earlier: the old rend
 ```bash
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/ResourceAudit.jar" "$PWD/work/logs/native-resources|45|native"
 # Wait for complete.txt, then start coloring.
-./twstapecolor start --pid PID
+java --add-modules jdk.attach -jar build/twstapecolor.jar start --pid PID
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/Level2IsolationAudit.jar" "$PWD/work/logs/level2|30"
 # After correctness audits finish, measure ordinary live operation:
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/ResourceAudit.jar" "$PWD/work/logs/live-resources|300|V0320"

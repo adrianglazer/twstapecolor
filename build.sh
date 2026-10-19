@@ -32,6 +32,6 @@ MANIFEST
 (cd build/asm-unpacked && jar xf "../../${ASM_JAR}")
 # Strip dependency metadata and signatures; this is a single, self-contained agent jar.
 rm -rf build/asm-unpacked/META-INF
-jar cfm build/twstapecolor.jar build/manifest.mf -C build/classes . -C build/asm-unpacked .
+jar cfm build/twstapecolor.jar build/manifest.mf -C build/classes . -C build/asm-unpacked . -C . LICENSE -C third-party ASM-LICENSE.txt
 jar tf build/twstapecolor.jar | grep -q 'org/objectweb/asm/ClassReader.class' || { echo "ASM not bundled" >&2; exit 1; }
 echo "Built: build/twstapecolor.jar (bundled ASM ${ASM_VERSION})"

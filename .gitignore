@@ -10,3 +10,6 @@ logs/
 # Python offline-verifier caches
 __pycache__/
 *.pyc
+
+# Temporary command responses beside the distributed JAR
+dist/twstapecolor-ipc-*.tmp

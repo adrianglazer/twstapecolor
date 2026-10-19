@@ -43,20 +43,34 @@ Renderer wrappers are bound to their owning tape table and recheck that owner be
 
 `stop` disables and restores data hooks, removes model listeners and the private view filter, releases captured event state, then removes the renderer transformer and requests restoration of the original bytecode. Model replacement or loss of displayability discards the old view state, including listeners and cached renderers. A pending installation is canceled if its displayed table closes first. A later `start` installs fresh view state. The registering instrumentation handle is retained across commands; a failed transformer removal is reported as a warning instead of claiming restoration. View installation/removal preserves selection by model row. Stop waits for any in-flight data callback before clearing caches. Agent, data, view and hook classes have new versioned names to avoid reusing older classes already loaded in TWS.
 
-## Build and run
+## Ready-to-run distribution (Linux and Windows)
+
+Download [dist/twstapecolor-v0.3.20.jar](dist/twstapecolor-v0.3.20.jar) using GitHub's **Download raw file** button, or clone/download this repository. The same JAR works as the Java application and agent on Linux and Windows; it bundles ASM and both license notices. It needs a JDK **21+** and a compatible TWS runtime, with no source build or Bash launcher needed. Windows remains untested in live TWS. See [dist/README.md](dist/README.md) and [SHA256SUMS](dist/SHA256SUMS).
+
+Keep its versioned filename unchanged in a writable `dist` subfolder of the project. From the project root, on Linux:
+
+```bash
+java --add-modules jdk.attach -jar dist/twstapecolor-v0.3.20.jar start
+java --add-modules jdk.attach -jar dist/twstapecolor-v0.3.20.jar status
+java --add-modules jdk.attach -jar dist/twstapecolor-v0.3.20.jar stop
+```
+
+The old `twstapecolor` Bash executable has been removed. Commands below use Java directly. Building from source is optional; a checked-in JAR runs its packaged version and does not automatically rebuild changed sources.
+
+## Build from source (Linux)
 
 Requirements: Linux, JDK **21+** (`java`, `javac`, `jar`, `jcmd`), Bash, and `unzip`. The build downloads ASM 9.8 from Maven Central if missing; subsequent builds can run offline.
 
 ```bash
 ./build.sh
 ./test.sh
-./twstapecolor --version
-./twstapecolor start
-./twstapecolor status
-./twstapecolor stop
+java --add-modules jdk.attach -jar build/twstapecolor.jar --version
+java --add-modules jdk.attach -jar build/twstapecolor.jar start
+java --add-modules jdk.attach -jar build/twstapecolor.jar status
+java --add-modules jdk.attach -jar build/twstapecolor.jar stop
 # Optional override if several TWS instances are running:
 jcmd -l
-./twstapecolor start --pid 12345
+java --add-modules jdk.attach -jar build/twstapecolor.jar start --pid 12345
 ```
 
 Before upgrading from an older running agent, **restart TWS completely** to clear stale hooks and renderers. Initially validate in paper trading. Versions through v0.3.15 could permanently disable backgrounds on shared native renderers, affecting Level 2. Stopping those versions cannot reliably recover that state; restart TWS once before upgrading. Change symbols, reorder/hide columns, scroll, and try `start`, `stop`, `start` while watching the tape. Confirm NBBO parsing and event order on your TWS build before trusting the display.
@@ -64,7 +78,7 @@ Before upgrading from an older running agent, **restart TWS completely** to clea
 Custom colors (six-digit hex RGB):
 
 ```bash
-./twstapecolor start --pid 12345 --ask-color '#006B3C' --bid-color '#8B2025'
+java --add-modules jdk.attach -jar build/twstapecolor.jar start --pid 12345 --ask-color '#006B3C' --bid-color '#8B2025'
 ```
 
 The launcher attaches through a version-specific JAR path to avoid TWS reusing an old JAR index when upgrading in the same JVM. Each `start` resets unspecified colors to the defaults. Run `start` again to change them without restarting TWS.
@@ -75,13 +89,17 @@ Omit `--pid` to find TWS among the local Java VMs visible to the current account
 
 If no instance is found, the console prints `No running TWS instance found. Start TWS and try again, or specify --pid PID.` and exits with code **1**, before creating logs or response files. If multiple instances match, it lists their PIDs and exits with code **1**; choose one with `--pid PID`. A VM that hides or changes its launcher name may require that explicit override. `--pid` remains available for all commands and can be combined with `--debug` or custom start colors.
 
-## Windows: manual use of the existing JAR (untested)
+## Windows: double-click or run the distributed JAR (untested)
 
-Windows has **not been live-tested**. These instructions use the existing Java agent without changing the code; there is no Windows-specific launcher. v0.3.20 automatically detects one visible TWS instance, while `--pid` remains an optional override. TWS's internal classes must match the versions expected by the agent, so successful attachment alone does not establish correct coloring.
+For the easiest setup, download and extract the repository ZIP, open `dist`, and double-click **`start-twstapecolor.cmd`**. Double-click **`stop-twstapecolor.cmd`** to stop coloring. Keep both scripts beside `twstapecolor-v0.3.20.jar`. The start script prefers Java from `JAVA_HOME`, otherwise uses `PATH`; it checks for the attach module and whether Java can load the Java 21 application. If a suitable JDK is missing, it displays installation instructions and a [JDK download link](https://learn.microsoft.com/java/openjdk/download), then waits for a key press. Command output also stays open after success or failure. If `JAVA_HOME` points to an older Java, update it or remove it so the launcher can use `PATH`.
+
+A console alternative is available below; the batch files and Windows TWS integration have not been executed on Windows in this verification.
+
+Windows has **not been live-tested**. These instructions use the existing Java agent without changing the code; the `dist` folder includes double-click start/stop command scripts. v0.3.20 automatically detects one visible TWS instance, while `--pid` remains an optional override. TWS's internal classes must match the versions expected by the agent, so successful attachment alone does not establish correct coloring.
 
 1. Install a **64-bit Windows JDK 21 or newer**, with `java`, `javac`, `jar` and `jcmd` available on `PATH`. Run TWS and the commands below under the same Windows account and elevation level. Use the Windows JDK directly, rather than a Linux JDK inside WSL.
-2. Obtain the built `twstapecolor.jar`. It is generated by `build.sh` and is not included in a source ZIP or Git checkout. You can build on Linux using the existing instructions and copy the resulting `build/twstapecolor.jar` into a `build` subfolder of your Windows project directory. The JAR bundles ASM; no separate dependency is needed to run it. Alternatively, build the checkout on Windows in **Git Bash**, with the Windows JDK plus `unzip` and `curl` or `wget` available, using `bash build.sh`. The Bash build route is also untested on Windows; PowerShell does not run `build.sh` directly.
-3. Start TWS, then open **PowerShell** in the project directory containing that `build` folder. Check Java:
+2. Download the ready-built [dist/twstapecolor-v0.3.20.jar](dist/twstapecolor-v0.3.20.jar) with GitHub's **Download raw file** button, or get it by downloading/cloning the repository. A source ZIP now includes this distribution. Keep it in a writable `dist` subfolder, with its filename unchanged. No Git Bash, compiler step, or separate ASM download is needed to run it. Verify its SHA-256 hash against [dist/SHA256SUMS](dist/SHA256SUMS), for example with `Get-FileHash .\dist\twstapecolor-v0.3.20.jar -Algorithm SHA256` from the project root.
+3. Start TWS, then open **PowerShell** in the project directory containing that `dist` folder. Check Java:
 
 ```powershell
 java -version
@@ -90,9 +108,9 @@ java -version
 Start, inspect or stop the agent without looking up a PID:
 
 ```powershell
-java --add-modules jdk.attach -jar .\build\twstapecolor.jar start
-java --add-modules jdk.attach -jar .\build\twstapecolor.jar status
-java --add-modules jdk.attach -jar .\build\twstapecolor.jar stop
+java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.20.jar start
+java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.20.jar status
+java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.20.jar stop
 ```
 
 If no TWS is found, the command prints a message and exits. If several instances are found, run `jcmd -l`, identify the intended TWS instance (usually `install4j.jclient.Launcher`), and add `--pid 12345` using its actual PID.
@@ -100,10 +118,10 @@ If no TWS is found, the command prints a message and exits. If several instances
 For live CSV capture, add `--debug` to **start**. Logs stay in the project `logs` folder, with the same bounds and verification instructions described below:
 
 ```powershell
-java --add-modules jdk.attach -jar .\build\twstapecolor.jar start --debug
+java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.20.jar start --debug
 ```
 
-Keep the JAR in a writable `build` subfolder: the launcher creates its versioned agent copy and temporary response files there, and resolves persistent logs in the parent project's `logs` folder. Running the JAR directly uses that built version; it does not rebuild source changes. Rebuild or replace the JAR after upgrading, and restart TWS before switching from an older active agent.
+Keep the versioned filename unchanged: it allows the agent to load the same JAR directly, without copying over a JAR that Windows TWS may have locked open. Temporary responses are created in `dist`, and persistent logs go in the parent project's `logs` folder. Replace the JAR when upgrading, and restart TWS before switching from an older active agent.
 
 First try this in paper trading. Verify new tape rows, bid/ask colors, linked symbol changes, unaffected Level 2 backgrounds, and restoration after `stop`. If attachment fails, check the Windows JDK, PID and matching account/elevation. If rendering behaves incorrectly, stop the agent and restart TWS; Windows compatibility remains unverified until those live checks pass.
 
@@ -136,18 +154,18 @@ Size shading is **relative to the largest currently visible print**, not an abso
 - `probe --pid PID`, then `report --pid PID`: bounded renderer metadata and values. Probe mode removes the trade filter and makes no color changes.
 - `dump --pid PID`: deliberately saves in-memory target bytecode to a `.class` file.
 
-Commands print to the console. Normal commands leave no persistent reports: a short-lived response file in `build/` is removed after use (a forcibly killed launcher may leave it behind). Add `--debug` to any command to retain `logs/twstapecolor-<command>-<pid>-<timestamp>.txt` inside the project. All persistent diagnostics, including requested bytecode dumps, stay in the project; `logs/`, `work/` and `*.log` are ignored by Git. Inspect diagnostic data before sharing; it may contain market data and symbol information. `dump` writes its requested file even without debug. The launcher rebuilds the agent JAR before each command.
+Commands print to the console. Normal commands leave no persistent reports: a short-lived response file beside the JAR (`dist/` or `build/`) is removed after use (a forcibly killed launcher may leave it behind). Add `--debug` to any command to retain `logs/twstapecolor-<command>-<pid>-<timestamp>.txt` inside the project. All persistent diagnostics, including requested bytecode dumps, stay in the project; `logs/`, `work/` and `*.log` are ignored by Git. Inspect diagnostic data before sharing; it may contain market data and symbol information. `dump` writes its requested file even without debug. Java commands use the selected JAR as built. After editing sources, rebuild with `bash build.sh`; to refresh the committed distribution and checksum, use `bash tools/package.sh`.
 
 ### Record and check live market events (v0.3.19)
 
 `start --debug` also starts an asynchronous CSV trace of the **watched tape instruments' changed top-of-book snapshots and incoming trade callbacks**. It is not a full market feed, depth-book archive, or historical export. Each row contains a session event number, local epoch milliseconds and monotonic nanoseconds, type `Q`/`T`, market-record identity, trade-object identity, Last/Size, frozen bid/ask prices and sizes, quote sequence and calculated direction (`1` ask, `-1` bid, `0` neutral). Record identities distinguish instruments within that JVM; they are not ticker symbols or exchange order IDs. Unknown quotes are recorded explicitly. Unchanged quote notifications are deduplicated. Old/backfilled table rows are not converted into invented live events.
 
 ```bash
-./twstapecolor start --pid 12345 --debug
+java --add-modules jdk.attach -jar build/twstapecolor.jar start --pid 12345 --debug
 # Observe the desired live session; status gives the exact CSV prefix and loss/error counters.
-./twstapecolor status --pid 12345 --debug
-./twstapecolor stop --pid 12345 --debug
-./twstapecolor status --pid 12345 --debug
+java --add-modules jdk.attach -jar build/twstapecolor.jar status --pid 12345 --debug
+java --add-modules jdk.attach -jar build/twstapecolor.jar stop --pid 12345 --debug
+java --add-modules jdk.attach -jar build/twstapecolor.jar status --pid 12345 --debug
 # Python 3 is needed only for this offline check. Supply all segments from ONE start session:
 python3 tools/verify_debug.py logs/twstapecolor-start-12345-YYYYMMDD-HHMMSS-SSS.txt-live-*.csv
 ```
@@ -164,7 +182,7 @@ The Java suite passes 56,558 checks with `-Xverify:all`, including new logger or
 
 ## Validation and limits
 
-v0.3.20 adds automatic selection of exactly one visible TWS JVM, clear no-match/multiple-match exits, and optional PID overrides. Twenty-four new checks cover exact launcher matching, launcher arguments, unrelated JVMs/IB Gateway, empty and ambiguous results, invalid/duplicate options and CLI exit codes. The full Java suite now contains 56,582 checks. The existing Windows instructions describe manual JAR use; Windows has not been live-tested.
+v0.3.20 adds automatic selection of exactly one visible TWS JVM, clear no-match/multiple-match exits, and optional PID overrides. Twenty-four new checks cover exact launcher matching, launcher arguments, unrelated JVMs/IB Gateway, empty and ambiguous results, invalid/duplicate options and CLI exit codes. The full Java suite now contains 56,582 checks. The Windows instructions use the shared ready-built distribution; Windows has not been live-tested.
 
 
 v0.3.18 adds native symbol-reset handling, stale-index guards, an unfiltered Current summary, bounded watched-record turnover, and instrument/price/size guards on captured events. The suite includes 100 deterministic reset cycles, 1,000 seeded model/count/selection resets, and 256 distinct record changes under constrained heaps. See the [2026-10-16 report](QA-REPORT-2026-10-16.md) for live switch checks and limits.
