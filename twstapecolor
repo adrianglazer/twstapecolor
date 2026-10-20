@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$root/out/twstapecolor.jar" ]]; then
+  echo "twstapecolor is not built. Run ./build from the project directory first." >&2
+  exit 1
+fi
+exec java --add-modules jdk.attach -jar "$root/out/twstapecolor.jar" "$@"

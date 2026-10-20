@@ -1,4 +1,4 @@
-build/
+out/
 lib/*.jar
 lib/*.tmp
 

@@ -75,3 +75,9 @@ Added the shared Linux/Windows `dist/twstapecolor-v0.3.20.jar`, its SHA-256 chec
 The artifact includes the MIT and ASM BSD-3-Clause license texts, ASM 9.8, the executable Main-Class, and the Agent-Class/retransformation manifest. Its 34 application class files target Java 21 and match the freshly compiled sources; no native or proprietary TWS binaries are included. Linux `-Xverify:all` version and no-instance CLI checks passed; the no-instance path returned 1. The full 56,582-check Java suite and six Python verifier tests passed. Packaging shell scripts passed syntax checks, and the JAR checksum was verified.
 
 The Windows scripts are ASCII with CRLF line endings. They locate Java through JAVA_HOME/PATH, check jdk.attach and Java 21 class compatibility, explain a missing/old JDK, retain console messages, and support default start or explicit CLI arguments. They have been reviewed but not run under Windows; Windows TWS attachment/rendering remains untested. No live TWS state was changed for this packaging task. Raw checks remain in ignored `work/` files.
+
+## Linux launcher restoration — 2026-10-20
+
+Restored executable `./twstapecolor` and added executable `./build`, which delegates to `build.sh`. Generated classes, dependencies and the local JAR now use ignored `out/`, avoiding a file/directory collision at `build`. The launcher uses the locally built JAR, forwards CLI arguments, and tells the user to run `./build` if it is missing. Rebuild explicitly after source changes. Updated test/live-tool builds, packaging paths and active README examples; the shared dist JAR and Windows command scripts are unchanged.
+
+The full 56,582 Java checks passed with the new output paths. The missing-build launcher check printed its guidance and exited with code 1. Shell syntax checks passed; the shared distribution checksum is unchanged. No live TWS state was changed for this task. Earlier reports' `build/` paths are historical.

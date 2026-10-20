@@ -55,22 +55,24 @@ java --add-modules jdk.attach -jar dist/twstapecolor-v0.3.20.jar status
 java --add-modules jdk.attach -jar dist/twstapecolor-v0.3.20.jar stop
 ```
 
-The old `twstapecolor` Bash executable has been removed. Commands below use Java directly. Building from source is optional; a checked-in JAR runs its packaged version and does not automatically rebuild changed sources.
+Linux users can build locally with `./build` and run `./twstapecolor start`, as described below. The shared distribution remains available on both platforms; a checked-in JAR runs its packaged version and does not automatically rebuild changed sources.
 
 ## Build from source (Linux)
+
+Run `./build` once, then use `./twstapecolor start`, `status` or `stop`. Rebuild after changing sources; the launcher uses the existing local JAR and reports a clear message if it is missing. Generated files now live in ignored `out/` so `build` can be an executable command. `build.sh` remains available as the underlying build script.
 
 Requirements: Linux, JDK **21+** (`java`, `javac`, `jar`, `jcmd`), Bash, and `unzip`. The build downloads ASM 9.8 from Maven Central if missing; subsequent builds can run offline.
 
 ```bash
-./build.sh
+./build
 ./test.sh
-java --add-modules jdk.attach -jar build/twstapecolor.jar --version
-java --add-modules jdk.attach -jar build/twstapecolor.jar start
-java --add-modules jdk.attach -jar build/twstapecolor.jar status
-java --add-modules jdk.attach -jar build/twstapecolor.jar stop
+./twstapecolor --version
+./twstapecolor start
+./twstapecolor status
+./twstapecolor stop
 # Optional override if several TWS instances are running:
 jcmd -l
-java --add-modules jdk.attach -jar build/twstapecolor.jar start --pid 12345
+./twstapecolor start --pid 12345
 ```
 
 Before upgrading from an older running agent, **restart TWS completely** to clear stale hooks and renderers. Initially validate in paper trading. Versions through v0.3.15 could permanently disable backgrounds on shared native renderers, affecting Level 2. Stopping those versions cannot reliably recover that state; restart TWS once before upgrading. Change symbols, reorder/hide columns, scroll, and try `start`, `stop`, `start` while watching the tape. Confirm NBBO parsing and event order on your TWS build before trusting the display.
@@ -78,7 +80,7 @@ Before upgrading from an older running agent, **restart TWS completely** to clea
 Custom colors (six-digit hex RGB):
 
 ```bash
-java --add-modules jdk.attach -jar build/twstapecolor.jar start --pid 12345 --ask-color '#006B3C' --bid-color '#8B2025'
+./twstapecolor start --pid 12345 --ask-color '#006B3C' --bid-color '#8B2025'
 ```
 
 The launcher attaches through a version-specific JAR path to avoid TWS reusing an old JAR index when upgrading in the same JVM. Each `start` resets unspecified colors to the defaults. Run `start` again to change them without restarting TWS.
@@ -154,18 +156,18 @@ Size shading is **relative to the largest currently visible print**, not an abso
 - `probe --pid PID`, then `report --pid PID`: bounded renderer metadata and values. Probe mode removes the trade filter and makes no color changes.
 - `dump --pid PID`: deliberately saves in-memory target bytecode to a `.class` file.
 
-Commands print to the console. Normal commands leave no persistent reports: a short-lived response file beside the JAR (`dist/` or `build/`) is removed after use (a forcibly killed launcher may leave it behind). Add `--debug` to any command to retain `logs/twstapecolor-<command>-<pid>-<timestamp>.txt` inside the project. All persistent diagnostics, including requested bytecode dumps, stay in the project; `logs/`, `work/` and `*.log` are ignored by Git. Inspect diagnostic data before sharing; it may contain market data and symbol information. `dump` writes its requested file even without debug. Java commands use the selected JAR as built. After editing sources, rebuild with `bash build.sh`; to refresh the committed distribution and checksum, use `bash tools/package.sh`.
+Commands print to the console. Normal commands leave no persistent reports: a short-lived response file beside the JAR (`dist/` or `out/`) is removed after use (a forcibly killed launcher may leave it behind). Add `--debug` to any command to retain `logs/twstapecolor-<command>-<pid>-<timestamp>.txt` inside the project. All persistent diagnostics, including requested bytecode dumps, stay in the project; `logs/`, `work/` and `*.log` are ignored by Git. Inspect diagnostic data before sharing; it may contain market data and symbol information. `dump` writes its requested file even without debug. Java commands use the selected JAR as built. After editing sources, rebuild with `./build`; to refresh the committed distribution and checksum, use `bash tools/package.sh`.
 
 ### Record and check live market events (v0.3.19)
 
 `start --debug` also starts an asynchronous CSV trace of the **watched tape instruments' changed top-of-book snapshots and incoming trade callbacks**. It is not a full market feed, depth-book archive, or historical export. Each row contains a session event number, local epoch milliseconds and monotonic nanoseconds, type `Q`/`T`, market-record identity, trade-object identity, Last/Size, frozen bid/ask prices and sizes, quote sequence and calculated direction (`1` ask, `-1` bid, `0` neutral). Record identities distinguish instruments within that JVM; they are not ticker symbols or exchange order IDs. Unknown quotes are recorded explicitly. Unchanged quote notifications are deduplicated. Old/backfilled table rows are not converted into invented live events.
 
 ```bash
-java --add-modules jdk.attach -jar build/twstapecolor.jar start --pid 12345 --debug
+./twstapecolor start --pid 12345 --debug
 # Observe the desired live session; status gives the exact CSV prefix and loss/error counters.
-java --add-modules jdk.attach -jar build/twstapecolor.jar status --pid 12345 --debug
-java --add-modules jdk.attach -jar build/twstapecolor.jar stop --pid 12345 --debug
-java --add-modules jdk.attach -jar build/twstapecolor.jar status --pid 12345 --debug
+./twstapecolor status --pid 12345 --debug
+./twstapecolor stop --pid 12345 --debug
+./twstapecolor status --pid 12345 --debug
 # Python 3 is needed only for this offline check. Supply all segments from ONE start session:
 python3 tools/verify_debug.py logs/twstapecolor-start-12345-YYYYMMDD-HHMMSS-SSS.txt-live-*.csv
 ```

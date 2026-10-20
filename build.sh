@@ -19,19 +19,19 @@ if [[ ! -s "$ASM_JAR" ]]; then
 fi
 # Reject invalid HTML/error files before compiling.
 unzip -tq "$ASM_JAR" >/dev/null || { echo "Invalid ASM jar: $ASM_JAR" >&2; exit 1; }
-rm -rf build/classes build/asm-unpacked build/twstapecolor.jar
-mkdir -p build/classes build/asm-unpacked
-javac --release 21 -cp "$ASM_JAR" -d build/classes src/twstapecolor/*.java
-cat > build/manifest.mf <<'MANIFEST'
+rm -rf out/classes out/asm-unpacked out/twstapecolor.jar
+mkdir -p out/classes out/asm-unpacked
+javac --release 21 -cp "$ASM_JAR" -d out/classes src/twstapecolor/*.java
+cat > out/manifest.mf <<'MANIFEST'
 Manifest-Version: 1.0
 Main-Class: twstapecolor.Main
 Agent-Class: twstapecolor.AgentV0320
 Can-Retransform-Classes: true
 
 MANIFEST
-(cd build/asm-unpacked && jar xf "../../${ASM_JAR}")
+(cd out/asm-unpacked && jar xf "../../${ASM_JAR}")
 # Strip dependency metadata and signatures; this is a single, self-contained agent jar.
-rm -rf build/asm-unpacked/META-INF
-jar cfm build/twstapecolor.jar build/manifest.mf -C build/classes . -C build/asm-unpacked . -C . LICENSE -C third-party ASM-LICENSE.txt
-jar tf build/twstapecolor.jar | grep -q 'org/objectweb/asm/ClassReader.class' || { echo "ASM not bundled" >&2; exit 1; }
-echo "Built: build/twstapecolor.jar (bundled ASM ${ASM_VERSION})"
+rm -rf out/asm-unpacked/META-INF
+jar cfm out/twstapecolor.jar out/manifest.mf -C out/classes . -C out/asm-unpacked . -C . LICENSE -C third-party ASM-LICENSE.txt
+jar tf out/twstapecolor.jar | grep -q 'org/objectweb/asm/ClassReader.class' || { echo "ASM not bundled" >&2; exit 1; }
+echo "Built: out/twstapecolor.jar (bundled ASM ${ASM_VERSION})"

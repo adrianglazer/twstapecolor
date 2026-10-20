@@ -6,7 +6,7 @@ From the project root:
 
 ```bash
 bash tests/live/build.sh
-java --add-modules jdk.attach -jar build/twstapecolor.jar start --pid PID
+./twstapecolor start --pid PID
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/AccuracyAudit.jar" "$PWD/work/logs/my-audit|V0320|45"
 ```
 
@@ -22,11 +22,11 @@ The decimal oracle normalizes binary encoding noise to 12 significant digits. Th
 For restoration, stop the agent and save a clean baseline:
 
 ```bash
-java --add-modules jdk.attach -jar build/twstapecolor.jar stop --pid PID
+./twstapecolor stop --pid PID
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/StateAudit.jar" "$PWD/work/logs/native|baseline"
-java --add-modules jdk.attach -jar build/twstapecolor.jar start --pid PID
+./twstapecolor start --pid PID
 # Exercise the tape, then:
-java --add-modules jdk.attach -jar build/twstapecolor.jar stop --pid PID
+./twstapecolor stop --pid PID
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/StateAudit.jar" "$PWD/work/logs/cycle1|check"
 ```
 
@@ -53,7 +53,7 @@ Use a freshly restarted TWS when upgrading from v0.3.15 or earlier: the old rend
 ```bash
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/ResourceAudit.jar" "$PWD/work/logs/native-resources|45|native"
 # Wait for complete.txt, then start coloring.
-java --add-modules jdk.attach -jar build/twstapecolor.jar start --pid PID
+./twstapecolor start --pid PID
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/Level2IsolationAudit.jar" "$PWD/work/logs/level2|30"
 # After correctness audits finish, measure ordinary live operation:
 java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/audits/ResourceAudit.jar" "$PWD/work/logs/live-resources|300|V0320"
@@ -61,7 +61,7 @@ java --add-modules jdk.attach -cp work/audit-classes AttachAudit PID "$PWD/work/
 
 The isolation audit compares two full Level 2 renders around repeated tape paints within the same EDT turn. It reports pixel differences, unexpected tape wrappers, sorter changes and colored depth rows. A changing live book can affect pixels; inspect any differences. The resource audit samples process CPU time, heap, GC, EDT queue delay and cache sizes once a second, then shuts down its worker. It never forces GC. Compare CPU time deltas per elapsed second; 1.0 means one CPU core. These are whole-TWS measurements and include market activity and unrelated panels. Native and enabled intervals cannot establish causal CPU differences by themselves.
 
-For a headless renderer allocation comparison, first run `./test.sh` and build the live tools. `RendererBenchmark VERSION ITERATIONS` needs both the production classes/JAR and synthetic fixtures from `build/test-classes` on its classpath. Run versions in separate JVMs. `OpacityRepro IsolatedTintRenderer` with an old JAR reproduces the native opacity corruption; `OpacityRepro TintRendererV0320` with the current build preserves it. All generated profiles and captures belong under ignored `work/` or `logs/`.
+For a headless renderer allocation comparison, first run `./test.sh` and build the live tools. `RendererBenchmark VERSION ITERATIONS` needs both the production classes/JAR and synthetic fixtures from `out/test-classes` on its classpath. Run versions in separate JVMs. `OpacityRepro IsolatedTintRenderer` with an old JAR reproduces the native opacity corruption; `OpacityRepro TintRendererV0320` with the current build preserves it. All generated profiles and captures belong under ignored `work/` or `logs/`.
 
 ## Symbol-switch verification
 
