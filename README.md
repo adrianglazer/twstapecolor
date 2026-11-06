@@ -2,6 +2,15 @@
 
 Experimental Time & Sales **row backgrounds** for Interactive Brokers Trader Workstation (TWS) on Linux. Unofficial; not affiliated with or supported by Interactive Brokers. It does not place orders or use account credentials.
 
+## Documentation
+
+- [Installation and operation](docs/user-guide.md) — Linux and Windows setup, command reference, and first-session checks.
+- [How the tape is colored](docs/tape-behavior.md) — preceding quotes, neutral rows, history filtering, and size shading.
+- [Troubleshooting and diagnostics](docs/diagnostics.md) — status, debug capture, CSV verification, and issue reports.
+- [Internals and maintenance](docs/maintainer-guide.md) — hooks, renderer isolation, tests, and release packaging.
+
+See the [documentation index](docs/README.md) for the full manual and verification references.
+
 ## Before and after
 
 Actual TCRT screen captures from TWS on 2026-10-16, with only **Time, Last and Size** visible.
@@ -18,7 +27,7 @@ The tape was live, so these captures show different moments and different trades
 - Hide quote-only and incomplete rows **in the table view**. All events remain in the model. The tool cannot recover older trades that TWS has already dropped; increase TWS's event retention if fewer than 50 trades are retained.
 - In TWS, capture the **latest observed top-of-book quote before each incoming trade is delivered to the tape**, then freeze that quote with the trade event. Quote updates are captured separately from displayed rows, so only Time, Last and Size need to be visible. A later quote cannot recolor an earlier trade. This follows local TWS delivery order, not a guarantee of exchange sequencing across separate quote/trade feeds.
 - At or above the preceding ask: green (`#16834A`). At or below the preceding bid: red (`#B83B4B`). Inside the spread, missing quotes, and invalid, partial, locked or crossed quotes: original TWS appearance. Invalid quotes replace earlier valid quotes rather than silently reusing stale data.
-- Tint every visible column. Smaller trades have softer backgrounds; the largest of the visible trades receives the configured color. Intensity is `0.18 + 0.82 * sqrt(size / largest visible size)`, blended with each renderer's original background. The scale updates as trades enter or leave the visible set. With a 10,000-share maximum, 100 / 1,000 / 10,000 shares use about 26% / 44% / 100% intensity, making large prints easier to distinguish.
+- Tint every visible column. Smaller trades have softer backgrounds; a directional trade at the largest included size receives the configured color. Intensity is `0.18 + 0.82 * sqrt(size / largest visible size)`, blended with each renderer's original background. The scale updates as trades enter or leave the visible set. With a 10,000-share maximum, 100 / 1,000 / 10,000 shares use about 26% / 44% / 100% intensity, making large prints easier to distinguish.
 - Preserve selected-cell appearance. `test-paint` uses alternating full-intensity colors solely for diagnosis.
 
 This version replaces the old UP/DOWN renderer-tag classifier with captured bid/ask comparisons. It is a price-relative classification, not a verified identification of the trade aggressor.
