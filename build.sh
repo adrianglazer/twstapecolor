@@ -25,7 +25,7 @@ javac --release 21 -cp "$ASM_JAR" -d out/classes src/twstapecolor/*.java
 cat > out/manifest.mf <<'MANIFEST'
 Manifest-Version: 1.0
 Main-Class: twstapecolor.Main
-Agent-Class: twstapecolor.AgentV0320
+Agent-Class: twstapecolor.AgentV0321
 Can-Retransform-Classes: true
 
 MANIFEST

@@ -1,6 +1,8 @@
-# twstapecolor v0.3.20
+# twstapecolor v0.3.21
 
 Experimental Time & Sales **row backgrounds** for Interactive Brokers Trader Workstation (TWS) on Linux. Unofficial; not affiliated with or supported by Interactive Brokers. It does not place orders or use account credentials.
+
+TWS 10.52 compatibility update: resolves the renamed market-record and top-of-book accessors using checked return types. TWS 10.51 remains supported. Restart TWS before switching from a previously loaded agent, then rebuild and run `./twstapecolor start`.
 
 ## Documentation
 
@@ -54,14 +56,14 @@ Renderer wrappers are bound to their owning tape table and recheck that owner be
 
 ## Ready-to-run distribution (Linux and Windows)
 
-Download [dist/twstapecolor-v0.3.20.jar](dist/twstapecolor-v0.3.20.jar) using GitHub's **Download raw file** button, or clone/download this repository. The same JAR works as the Java application and agent on Linux and Windows; it bundles ASM and both license notices. It needs a JDK **21+** and a compatible TWS runtime, with no source build or Bash launcher needed. Windows remains untested in live TWS. See [dist/README.md](dist/README.md) and [SHA256SUMS](dist/SHA256SUMS).
+Download [dist/twstapecolor-v0.3.21.jar](dist/twstapecolor-v0.3.21.jar) using GitHub's **Download raw file** button, or clone/download this repository. The same JAR works as the Java application and agent on Linux and Windows; it bundles ASM and both license notices. It needs a JDK **21+** and a compatible TWS runtime, with no source build or Bash launcher needed. Windows remains untested in live TWS. See [dist/README.md](dist/README.md) and [SHA256SUMS](dist/SHA256SUMS).
 
 Keep its versioned filename unchanged in a writable `dist` subfolder of the project. From the project root, on Linux:
 
 ```bash
-java --add-modules jdk.attach -jar dist/twstapecolor-v0.3.20.jar start
-java --add-modules jdk.attach -jar dist/twstapecolor-v0.3.20.jar status
-java --add-modules jdk.attach -jar dist/twstapecolor-v0.3.20.jar stop
+java --add-modules jdk.attach -jar dist/twstapecolor-v0.3.21.jar start
+java --add-modules jdk.attach -jar dist/twstapecolor-v0.3.21.jar status
+java --add-modules jdk.attach -jar dist/twstapecolor-v0.3.21.jar stop
 ```
 
 Linux users can build locally with `./build` and run `./twstapecolor start`, as described below. The shared distribution remains available on both platforms; a checked-in JAR runs its packaged version and does not automatically rebuild changed sources.
@@ -102,14 +104,14 @@ If no instance is found, the console prints `No running TWS instance found. Star
 
 ## Windows: double-click or run the distributed JAR (untested)
 
-For the easiest setup, download and extract the repository ZIP, open `dist`, and double-click **`start-twstapecolor.cmd`**. Double-click **`stop-twstapecolor.cmd`** to stop coloring. Keep both scripts beside `twstapecolor-v0.3.20.jar`. The start script prefers Java from `JAVA_HOME`, otherwise uses `PATH`; it checks for the attach module and whether Java can load the Java 21 application. If a suitable JDK is missing, it displays installation instructions and a [JDK download link](https://learn.microsoft.com/java/openjdk/download), then waits for a key press. Command output also stays open after success or failure. If `JAVA_HOME` points to an older Java, update it or remove it so the launcher can use `PATH`.
+For the easiest setup, download and extract the repository ZIP, open `dist`, and double-click **`start-twstapecolor.cmd`**. Double-click **`stop-twstapecolor.cmd`** to stop coloring. Keep both scripts beside `twstapecolor-v0.3.21.jar`. The start script prefers Java from `JAVA_HOME`, otherwise uses `PATH`; it checks for the attach module and whether Java can load the Java 21 application. If a suitable JDK is missing, it displays installation instructions and a [JDK download link](https://learn.microsoft.com/java/openjdk/download), then waits for a key press. Command output also stays open after success or failure. If `JAVA_HOME` points to an older Java, update it or remove it so the launcher can use `PATH`.
 
 A console alternative is available below; the batch files and Windows TWS integration have not been executed on Windows in this verification.
 
-Windows has **not been live-tested**. These instructions use the existing Java agent without changing the code; the `dist` folder includes double-click start/stop command scripts. v0.3.20 automatically detects one visible TWS instance, while `--pid` remains an optional override. TWS's internal classes must match the versions expected by the agent, so successful attachment alone does not establish correct coloring.
+Windows has **not been live-tested**. These instructions use the existing Java agent without changing the code; the `dist` folder includes double-click start/stop command scripts. v0.3.21 automatically detects one visible TWS instance, while `--pid` remains an optional override. TWS's internal classes must match the versions expected by the agent, so successful attachment alone does not establish correct coloring.
 
 1. Install a **64-bit Windows JDK 21 or newer**, with `java`, `javac`, `jar` and `jcmd` available on `PATH`. Run TWS and the commands below under the same Windows account and elevation level. Use the Windows JDK directly, rather than a Linux JDK inside WSL.
-2. Download the ready-built [dist/twstapecolor-v0.3.20.jar](dist/twstapecolor-v0.3.20.jar) with GitHub's **Download raw file** button, or get it by downloading/cloning the repository. A source ZIP now includes this distribution. Keep it in a writable `dist` subfolder, with its filename unchanged. No Git Bash, compiler step, or separate ASM download is needed to run it. Verify its SHA-256 hash against [dist/SHA256SUMS](dist/SHA256SUMS), for example with `Get-FileHash .\dist\twstapecolor-v0.3.20.jar -Algorithm SHA256` from the project root.
+2. Download the ready-built [dist/twstapecolor-v0.3.21.jar](dist/twstapecolor-v0.3.21.jar) with GitHub's **Download raw file** button, or get it by downloading/cloning the repository. A source ZIP now includes this distribution. Keep it in a writable `dist` subfolder, with its filename unchanged. No Git Bash, compiler step, or separate ASM download is needed to run it. Verify its SHA-256 hash against [dist/SHA256SUMS](dist/SHA256SUMS), for example with `Get-FileHash .\dist\twstapecolor-v0.3.21.jar -Algorithm SHA256` from the project root.
 3. Start TWS, then open **PowerShell** in the project directory containing that `dist` folder. Check Java:
 
 ```powershell
@@ -119,9 +121,9 @@ java -version
 Start, inspect or stop the agent without looking up a PID:
 
 ```powershell
-java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.20.jar start
-java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.20.jar status
-java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.20.jar stop
+java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.21.jar start
+java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.21.jar status
+java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.21.jar stop
 ```
 
 If no TWS is found, the command prints a message and exits. If several instances are found, run `jcmd -l`, identify the intended TWS instance (usually `install4j.jclient.Launcher`), and add `--pid 12345` using its actual PID.
@@ -129,7 +131,7 @@ If no TWS is found, the command prints a message and exits. If several instances
 For live CSV capture, add `--debug` to **start**. Logs stay in the project `logs` folder, with the same bounds and verification instructions described below:
 
 ```powershell
-java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.20.jar start --debug
+java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.21.jar start --debug
 ```
 
 Keep the versioned filename unchanged: it allows the agent to load the same JAR directly, without copying over a JAR that Windows TWS may have locked open. Temporary responses are created in `dist`, and persistent logs go in the parent project's `logs` folder. Replace the JAR when upgrading, and restart TWS before switching from an older active agent.
@@ -192,6 +194,8 @@ On 2026-10-16, the live US session was checked on XLAB and the requested TCRT, w
 The Java suite passes 56,558 checks with `-Xverify:all`, including new logger ordering, flush, disabled-write, rotation, destination-failure and worker-cleanup tests under a 64 MiB heap. Six Python tests exercise the offline verifier, including deliberately corrupted direction/size data, instrument mismatch and missing events. Run them with `python3 -m unittest discover -s tests -p 'test_*.py'`. The MIT license is unchanged. The tape-only README comparison has been refreshed from this session.
 
 ## Validation and limits
+
+v0.3.21 restores coloring after the TWS 10.52 update by resolving the renamed market-record and top-of-book accessors with return-type checks. All 17 Java test suites and six Python tests pass. The installed 10.51 and 10.52 archives were checked for the required accessor and hook signatures. The user confirmed working coloring in TWS after rebuilding.
 
 v0.3.20 adds automatic selection of exactly one visible TWS JVM, clear no-match/multiple-match exits, and optional PID overrides. Twenty-four new checks cover exact launcher matching, launcher arguments, unrelated JVMs/IB Gateway, empty and ambiguous results, invalid/duplicate options and CLI exit codes. The full Java suite now contains 56,582 checks. The Windows instructions use the shared ready-built distribution; Windows has not been live-tested.
 

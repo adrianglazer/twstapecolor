@@ -1,6 +1,6 @@
 # twstapecolor documentation
 
-This manual describes **v0.3.20**. twstapecolor is an experimental Java agent for Interactive Brokers Trader Workstation (TWS). It adds price-relative trade backgrounds to the Time & Sales tape, filters the history view to valid prints, and can record local quote and trade diagnostics. It is unofficial and does not place orders or request market-data subscriptions.
+This manual describes **v0.3.21**. twstapecolor is an experimental Java agent for Interactive Brokers Trader Workstation (TWS). It adds price-relative trade backgrounds to the Time & Sales tape, filters the history view to valid prints, and can record local quote and trade diagnostics. It is unofficial and does not place orders or request market-data subscriptions.
 
 | Start here if you want to… | Read |
 | --- | --- |

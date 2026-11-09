@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 rem Keep the versioned JAR beside this script. No administrator rights are requested.
 pushd "%~dp0" >nul 2>&1
 if errorlevel 1 goto folder_error
-set "TAPE_JAR=%~dp0twstapecolor-v0.3.20.jar"
+set "TAPE_JAR=%~dp0twstapecolor-v0.3.21.jar"
 if not exist "%TAPE_JAR%" goto missing_jar
 
 rem Prefer JAVA_HOME; otherwise use the first Java on PATH.
@@ -21,7 +21,7 @@ rem Also ensure this Java can load the Java 21 application classes.
 "%TAPE_JAVA%" --add-modules jdk.attach -jar "%TAPE_JAR%" --version >nul 2>&1
 if errorlevel 1 goto java_error
 
-echo twstapecolor v0.3.20
+echo twstapecolor v0.3.21
 if "%~1"=="" (
   "%TAPE_JAVA%" --add-modules jdk.attach -jar "%TAPE_JAR%" start
 ) else (
@@ -48,7 +48,7 @@ echo Check JAVA_HOME and PATH. If the JDK is current, download the JAR again.
 goto failure
 
 :missing_jar
-echo twstapecolor-v0.3.20.jar is missing.
+echo twstapecolor-v0.3.21.jar is missing.
 echo Keep the JAR and both Windows command scripts together in the dist folder.
 goto failure
 
