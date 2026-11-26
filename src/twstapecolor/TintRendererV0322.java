@@ -7,13 +7,13 @@ import java.util.*;
 import javax.swing.*;
 
 /** Paint-only tint: never changes a shared native renderer's colors or parent. */
-final class TintRendererV0321 extends JComponent {
+final class TintRendererV0322 extends JComponent {
   private Component delegate;
   private Color tint;
   private double intensity;
-  TintRendererV0321(){}
-  TintRendererV0321(Component delegate,Color tint,double intensity){configure(delegate,tint,intensity);}
-  TintRendererV0321 configure(Component delegate,Color tint,double intensity){
+  TintRendererV0322(){}
+  TintRendererV0322(Component delegate,Color tint,double intensity){configure(delegate,tint,intensity);}
+  TintRendererV0322 configure(Component delegate,Color tint,double intensity){
     this.delegate=delegate;this.tint=tint;this.intensity=Math.clamp(intensity,0,1);return this;
   }
   @Override public Dimension getPreferredSize(){return delegate.getPreferredSize();}

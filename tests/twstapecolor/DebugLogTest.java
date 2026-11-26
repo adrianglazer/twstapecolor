@@ -7,29 +7,29 @@ public final class DebugLogTest {
  public static void main(String[] args)throws Exception {
   Path root=Path.of("work/debug-test");Files.createDirectories(root);
   Path prefix=root.resolve("events");for(int i=0;i<4;i++)Files.deleteIfExists(Path.of(prefix+"-"+i+".csv"));
-  LiveTapeDataV0321.clear();DebugLogV0321.start(prefix);
+  LiveTapeDataV0322.clear();DebugLogV0322.start(prefix);
   var book=new LiveDataTest.Book(10,11,100,200);var record=new LiveDataTest.Record(book);var instrument=new LiveDataTest.Instrument(record);
-  LiveTapeDataV0321.trade(new LiveDataTest.Event(instrument,11,50));
-  book.bid=11;book.ask=12;LiveTapeDataV0321.quote(record,new Object[0]);
-  LiveTapeDataV0321.trade(new LiveDataTest.Event(instrument,11,10));
-  DebugLogV0321.stop();var lines=Files.readAllLines(Path.of(prefix+"-0.csv"));
+  LiveTapeDataV0322.trade(new LiveDataTest.Event(instrument,11,50));
+  book.bid=11;book.ask=12;LiveTapeDataV0322.quote(record,new Object[0]);
+  LiveTapeDataV0322.trade(new LiveDataTest.Event(instrument,11,10));
+  DebugLogV0322.stop();var lines=Files.readAllLines(Path.of(prefix+"-0.csv"));
   check(lines.size()==5,"quote and trade events flushed on stop");
   check(lines.get(1).split(",")[3].equals("Q"),"seed quote precedes trade");
   check(lines.get(2).endsWith(",1"),"ask direction saved");
   check(lines.get(4).endsWith(",-1"),"bid direction saved");
   check(lines.get(2).split(",")[12].equals(lines.get(1).split(",")[12]),"frozen quote sequence saved");
-  check(DebugLogV0321.status().contains("dropped=0"),"loss counters accurate");
-  long bytes=Files.size(Path.of(prefix+"-0.csv"));LiveTapeDataV0321.trade(new LiveDataTest.Event(instrument,12,1));
+  check(DebugLogV0322.status().contains("dropped=0"),"loss counters accurate");
+  long bytes=Files.size(Path.of(prefix+"-0.csv"));LiveTapeDataV0322.trade(new LiveDataTest.Event(instrument,12,1));
   check(Files.size(Path.of(prefix+"-0.csv"))==bytes,"disabled logging produces no event writes");
   // Force frequent rotation and queue pressure under a 64 MiB heap.
-  DebugLogV0321.start(prefix,1024);
-  for(int i=0;i<100000;i++)DebugLogV0321.event("T",record,null,11,100,new LiveTapeDataV0321.Quote(10,11,1,2,1),1);
-  DebugLogV0321.stop();
-  for(int i=0;i<4;i++){Path file=Path.of(prefix+"-"+i+".csv");check(Files.exists(file)&&Files.size(file)<=1024,"rotated file exceeds cap");check(Files.readString(file).startsWith(DebugLogV0321.HEADER),"rotation missing schema");}
+  DebugLogV0322.start(prefix,1024);
+  for(int i=0;i<100000;i++)DebugLogV0322.event("T",record,null,11,100,new LiveTapeDataV0322.Quote(10,11,1,2,1),1);
+  DebugLogV0322.stop();
+  for(int i=0;i<4;i++){Path file=Path.of(prefix+"-"+i+".csv");check(Files.exists(file)&&Files.size(file)<=1024,"rotated file exceeds cap");check(Files.readString(file).startsWith(DebugLogV0322.HEADER),"rotation missing schema");}
   check(Thread.getAllStackTraces().keySet().stream().noneMatch(t->t.isAlive()&&t.getName().equals("twstapecolor-debug-v0320")),"writer leaked after stop");
-  Path blocker=root.resolve("blocker");Files.writeString(blocker,"file");boolean failed=false;try{DebugLogV0321.start(blocker.resolve("bad"));}catch(java.io.IOException expected){failed=true;}
+  Path blocker=root.resolve("blocker");Files.writeString(blocker,"file");boolean failed=false;try{DebugLogV0322.start(blocker.resolve("bad"));}catch(java.io.IOException expected){failed=true;}
   check(failed,"invalid destination must report failure");
-  check(!DebugLogV0321.status().startsWith("liveDebug=on"),"failed start enabled logger");
+  check(!DebugLogV0322.status().startsWith("liveDebug=on"),"failed start enabled logger");
   System.out.println("Debug log tests passed ("+checks+" checks)");
  }
 }

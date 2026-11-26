@@ -6,7 +6,7 @@ import java.util.*;
 import org.objectweb.asm.*;
 
 /** Two narrow hooks: record notifications before observers; completed live trade factory. */
-public final class FeedHookV0321 {
+public final class FeedHookV0322 {
   private static Instrumentation instrumentation;
   private static ClassFileTransformer transformer;
   private static Class<?>[] targets=new Class<?>[0];
@@ -30,11 +30,11 @@ public final class FeedHookV0321 {
               MethodVisitor base=super.visitMethod(flags,method,desc,sig,exceptions);
               if(name.equals("jclient/record/o")&&method.equals("a")&&desc.equals("(Ljclient/IRecObservable$Scope;Ljclient/IRecObservable$ObserverType;[Ljclient/record/RecordChangeEnum;)V")){
                 matches[0]++;
-                return new MethodVisitor(Opcodes.ASM9,base){@Override public void visitCode(){super.visitCode();super.visitVarInsn(Opcodes.ALOAD,0);super.visitVarInsn(Opcodes.ALOAD,3);super.visitMethodInsn(Opcodes.INVOKESTATIC,"twstapecolor/FeedHookV0321","quote","(Ljava/lang/Object;[Ljava/lang/Object;)V",false);}};
+                return new MethodVisitor(Opcodes.ASM9,base){@Override public void visitCode(){super.visitCode();super.visitVarInsn(Opcodes.ALOAD,0);super.visitVarInsn(Opcodes.ALOAD,3);super.visitMethodInsn(Opcodes.INVOKESTATIC,"twstapecolor/FeedHookV0322","quote","(Ljava/lang/Object;[Ljava/lang/Object;)V",false);}};
               }
               if(name.equals("feature/tape/data/a")&&method.equals("a")&&desc.equals("(Lfeature/timesales/l;)Lfeature/tape/data/a;")){
                 matches[0]++;
-                return new MethodVisitor(Opcodes.ASM9,base){@Override public void visitInsn(int opcode){if(opcode==Opcodes.ARETURN){super.visitInsn(Opcodes.DUP);super.visitMethodInsn(Opcodes.INVOKESTATIC,"twstapecolor/FeedHookV0321","trade","(Ljava/lang/Object;)V",false);}super.visitInsn(opcode);}};
+                return new MethodVisitor(Opcodes.ASM9,base){@Override public void visitInsn(int opcode){if(opcode==Opcodes.ARETURN){super.visitInsn(Opcodes.DUP);super.visitMethodInsn(Opcodes.INVOKESTATIC,"twstapecolor/FeedHookV0322","trade","(Ljava/lang/Object;)V",false);}super.visitInsn(opcode);}};
               }
               return base;
             }
@@ -49,10 +49,10 @@ public final class FeedHookV0321 {
     catch(Throwable e){inst.removeTransformer(transformer);inst.retransformClasses(targets);transformer=null;throw e;}
   }
   public static void quote(Object record,Object[] changes){
-    if(!active||!LiveTapeDataV0321.watching(record))return;
-    synchronized(FeedHookV0321.class){if(active)try{LiveTapeDataV0321.quote(record,changes);}catch(Throwable ignored){}}
+    if(!active||!LiveTapeDataV0322.watching(record))return;
+    synchronized(FeedHookV0322.class){if(active)try{LiveTapeDataV0322.quote(record,changes);}catch(Throwable ignored){}}
   }
-  public static synchronized void trade(Object event){if(active)try{LiveTapeDataV0321.trade(event);}catch(Throwable ignored){}}
+  public static synchronized void trade(Object event){if(active)try{LiveTapeDataV0322.trade(event);}catch(Throwable ignored){}}
   static synchronized String stop(){
     active=false;
     try{

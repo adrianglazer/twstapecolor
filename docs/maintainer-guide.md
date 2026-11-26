@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) · [Operations](user-guide.md) · [Diagnostics](diagnostics.md)
 
-This guide describes the v0.3.21 implementation. Names from TWS are observations about the inspected build, not a supported Interactive Brokers API. Before changing a matcher or accessor, check the behavior against the intended TWS build and preserve the regression cases below.
+This guide describes the v0.3.22 implementation. Names from TWS are observations about the inspected build, not a supported Interactive Brokers API. Before changing a matcher or accessor, check the behavior against the intended TWS build and preserve the regression cases below.
 
 ## Process and code map
 
@@ -11,13 +11,13 @@ The same JAR serves as an external command-line program and an agent loaded into
 | Code | Responsibility |
 | --- | --- |
 | [Main.java](../src/twstapecolor/Main.java) | Parse CLI options, discover TWS, attach, and read the command response. |
-| [AgentV0321.java](../src/twstapecolor/AgentV0321.java) | Agent entry point, response-file protocol, live debug setup and error reporting. |
-| [HookV0321.java](../src/twstapecolor/HookV0321.java) | Command modes, renderer hook, target checks, probe sampling, and restoration. |
-| [FeedHookV0321.java](../src/twstapecolor/FeedHookV0321.java) | Install and remove the quote and live trade callbacks. |
-| [LiveTapeDataV0321.java](../src/twstapecolor/LiveTapeDataV0321.java) | Read native objects and store instrument-scoped snapshots. |
-| [TapeViewV0321.java](../src/twstapecolor/TapeViewV0321.java) | History membership, row mapping, classification snapshots, and view lifecycle. |
-| [TintRendererV0321.java](../src/twstapecolor/TintRendererV0321.java) | Blend backgrounds during painting while delegating native content. |
-| [DebugLogV0321.java](../src/twstapecolor/DebugLogV0321.java) | Bounded asynchronous CSV session. |
+| [AgentV0322.java](../src/twstapecolor/AgentV0322.java) | Agent entry point, response-file protocol, live debug setup and error reporting. |
+| [HookV0322.java](../src/twstapecolor/HookV0322.java) | Command modes, renderer hook, target checks, probe sampling, and restoration. |
+| [FeedHookV0322.java](../src/twstapecolor/FeedHookV0322.java) | Install and remove the quote and live trade callbacks. |
+| [LiveTapeDataV0322.java](../src/twstapecolor/LiveTapeDataV0322.java) | Read native objects and store instrument-scoped snapshots. |
+| [TapeViewV0322.java](../src/twstapecolor/TapeViewV0322.java) | History membership, row mapping, classification snapshots, and view lifecycle. |
+| [TintRendererV0322.java](../src/twstapecolor/TintRendererV0322.java) | Blend backgrounds during painting while delegating native content. |
+| [DebugLogV0322.java](../src/twstapecolor/DebugLogV0322.java) | Bounded asynchronous CSV session. |
 | [ColorTagDetector.java](../src/twstapecolor/ColorTagDetector.java) | Legacy renderer-tag logic retained for regression coverage; not the live price classifier. |
 
 ```mermaid
@@ -46,8 +46,8 @@ The agent mutates bytecode in the JVM, not the installed application files. The 
 ## Native access and state
 
 - The supported tape table is `feature.tape.ui.aN`. The history model is `feature.tape.ui.aT`; the separate Current model is `feature.tape.data.k`.
-- Read a native event through `e(row, -1)`, price via `D()`, size via `F()`, and the instrument's record via `ar().rk()` (10.51) or `ar().q6()` (10.52), with the return type checked. Native `getValueAt()` can return null despite a populated cell. The adapter converts missing, nonpositive or nonfinite numbers to unavailable and rejects `Double.MAX_VALUE`.
-- Read the record's existing top object through field `p` and its book through `cO(): aZ` (10.51) or `cN(): a0` (10.52). The book methods are `G()` for bid, `F()` for ask, `aa()` for bid size and `Z()` for ask size. Never use the absence of entries in a notification's changes array as proof that no book fields changed.
+- Read a native event through `e(row, -1)`, price via `D()`, size via `F()`, and the instrument's record via `ar().rk()` (10.51) or `ar().q6()` (10.52) or `ar().q8()` (10.53), with the return type checked. Native `getValueAt()` can return null despite a populated cell. The adapter converts missing, nonpositive or nonfinite numbers to unavailable and rejects `Double.MAX_VALUE`.
+- Read the record's existing top object through field `p` and its book through `cO(): aZ` (10.51) or `cN(): a0` (10.52) or `cO(): a0` on `jclient.oQ` (10.53). The book methods are `G()` for bid, `F()` for ask, `aa()` for bid size and `Z()` for ask size. Never use the absence of entries in a notification's changes array as proof that no book fields changed.
 - Watch records and cache captures by object identity. Seed the book when a record is first seen, but do not assign it to pre-existing rows. A captured history event must match record identity, price and size. Current events of the expected class can use the latest matching capture for their record and price/size.
 - The watched-record cache holds 64 entries and evicts in insertion order; eviction also drops that record's Current capture. The event cache holds 4,096 entries, retaining frozen quotes independently of watched-record turnover. Unrelated record notifications are rejected by an immutable watched-set snapshot before the callback lock. Available books with identical price and size fields are deduplicated.
 
@@ -96,7 +96,7 @@ The [October 15 report](../QA-REPORT-2026-10-15.md) documents the tested TWS 10.
 ```bash
 bash tools/package.sh
 (cd dist && sha256sum -c SHA256SUMS)
-java -Xverify:all --add-modules jdk.attach -jar dist/twstapecolor-v0.3.21.jar --version
+java -Xverify:all --add-modules jdk.attach -jar dist/twstapecolor-v0.3.22.jar --version
 ```
 
 The project is [MIT licensed](../LICENSE); bundled ASM has a [separate BSD-3-Clause license](../third-party/ASM-LICENSE.txt). Historical files can refer to prior JAR names, helper versions and build directories. Use the current guide for current commands; preserve dated reports as evidence.
@@ -113,3 +113,25 @@ name collisions; `LiveDataTest` retains coverage of the previous adapter.
 
 The 10.52 installed bytecode was inspected for both data hooks and the renderer
 hook. Live attachment/rendering still requires a running TWS session.
+
+### TWS 10.53 accessor compatibility (v0.3.22)
+
+Inspected the locally installed TWS 10.53.1a archive (build November 20, 2026),
+selected by the November 26 startup log. The instrument class changed from
+`jclient.dA` to `jclient.dz`; the existing-record getter is now `q8(): jclient.record.o`.
+`q6()` now returns String, and `rk()` returns an unrelated execution object.
+The record's `p` field now holds `jclient.oQ`, whose `cO(): jclient.record.a0`
+returns the book; `cN()` now returns boolean. Match the top class, getter name
+and return type explicitly, and reject unrecognized native top classes.
+
+All three instrumentation target signatures, tape table/model names, inherited
+`e(int,int)` row access, `D()`/`F()` trade access and `G()`/`F()`/`aa()`/`Z()`
+book signatures remain present. The existing-record `q8()` is a field read;
+do not use the separate `st()` getter, which can allocate another record.
+`Tws1053Test` checks historical neutrality, ask/bid coloring, frozen quotes and
+name collisions; earlier-version regression tests remain in the suite.
+
+Runtime helper classes are versioned V0322 to avoid reusing V0321 classes in
+TWS. Restart TWS before upgrading. Live attachment/rendering on 10.53 could
+not be checked from the process-isolated environment; static inspection and
+headless tests do not establish live feed or rendering correctness.

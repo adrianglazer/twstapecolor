@@ -5,8 +5,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.swing.table.TableModel;
 
-/** Read-only accessors verified against TWS 10.51 and 10.52. No subscription/config writes. */
-final class LiveTapeDataV0321 {
+/** Read-only accessors verified against TWS 10.51, 10.52 and 10.53. No subscription/config writes. */
+final class LiveTapeDataV0322 {
   record Quote(double bid,double ask,double bidSize,double askSize,long sequence){}
   record Trade(double last,double size,double bid,double ask){}
   private record Captured(double last,double size,Object owner,Quote quote){}
@@ -51,7 +51,7 @@ final class LiveTapeDataV0321 {
   static Trade read(TableModel model,int row){
     try{
       Object event=event(model,row);if(event==null)return null;
-      double last=TapeViewV0321.number(get(event,"D")),size=TapeViewV0321.number(get(event,"F"));
+      double last=TapeViewV0322.number(get(event,"D")),size=TapeViewV0322.number(get(event,"F"));
       Object record=record(event);watch(record);
       Captured captured;
       synchronized(trades){captured=trades.get(event);}
@@ -69,7 +69,7 @@ final class LiveTapeDataV0321 {
   private static final ClassValue<Method> recordGetter=new ClassValue<>(){
     @Override protected Method computeValue(Class<?> type){
       try{
-        for(String name:List.of("rk","q6")){
+        for(String name:List.of("rk","q6","q8")){
           try{
             Method method=type.getMethod(name);
             if(method.getReturnType().getName().equals("jclient.record.o"))return method;
@@ -88,8 +88,13 @@ final class LiveTapeDataV0321 {
   private static final ClassValue<Method> bookGetter=new ClassValue<>(){
     @Override protected Method computeValue(Class<?> type){
       try{
-        if(type.getName().equals("jclient.oR")){
-          for(String[] signature:new String[][]{{"cO","jclient.record.aZ"},{"cN","jclient.record.a0"}}){
+        if(type.getName().startsWith("jclient.")){
+          String[][] signatures=switch(type.getName()){
+            case "jclient.oR" -> new String[][]{{"cO","jclient.record.aZ"},{"cN","jclient.record.a0"}};
+            case "jclient.oQ" -> new String[][]{{"cO","jclient.record.a0"}};
+            default -> new String[0][];
+          };
+          for(String[] signature:signatures){
             try{
               Method method=type.getMethod(signature[0]);
               if(method.getReturnType().getName().equals(signature[1]))return method;
@@ -120,23 +125,23 @@ final class LiveTapeDataV0321 {
     synchronized(quotes){if(!quotes.containsKey(record))return;}
     // TWS usually passes an empty changes array: the actual changed-field bits
     // are accumulated on the top record before this notification boundary.
-    try{update(record);}catch(ReflectiveOperationException|RuntimeException e){synchronized(quotes){if(quotes.containsKey(record))quotes.put(record,null);}DebugLogV0321.event("Q",record,null,Double.NaN,Double.NaN,null,0);failure(e);}
+    try{update(record);}catch(ReflectiveOperationException|RuntimeException e){synchronized(quotes){if(quotes.containsKey(record))quotes.put(record,null);}DebugLogV0322.event("Q",record,null,Double.NaN,Double.NaN,null,0);failure(e);}
   }
   private static synchronized void update(Object record)throws ReflectiveOperationException{
     // Read the existing record; do not ask TWS to allocate a feed or keep it alive.
     Object top=topField.get(record.getClass()).get(record);
-    if(top==null){synchronized(quotes){if(quotes.containsKey(record))quotes.put(record,null);}lastQuote="unavailable";DebugLogV0321.event("Q",record,null,Double.NaN,Double.NaN,null,0);return;}
+    if(top==null){synchronized(quotes){if(quotes.containsKey(record))quotes.put(record,null);}lastQuote="unavailable";DebugLogV0322.event("Q",record,null,Double.NaN,Double.NaN,null,0);return;}
     Object book=bookGetter.get(top.getClass()).invoke(top);
-    if(book==null){synchronized(quotes){if(quotes.containsKey(record))quotes.put(record,null);}lastQuote="unavailable";DebugLogV0321.event("Q",record,null,Double.NaN,Double.NaN,null,0);return;}
-    double bid=TapeViewV0321.number(get(book,"G")),ask=TapeViewV0321.number(get(book,"F"));
-    double bidSize=TapeViewV0321.number(get(book,"aa")),askSize=TapeViewV0321.number(get(book,"Z"));
+    if(book==null){synchronized(quotes){if(quotes.containsKey(record))quotes.put(record,null);}lastQuote="unavailable";DebugLogV0322.event("Q",record,null,Double.NaN,Double.NaN,null,0);return;}
+    double bid=TapeViewV0322.number(get(book,"G")),ask=TapeViewV0322.number(get(book,"F"));
+    double bidSize=TapeViewV0322.number(get(book,"aa")),askSize=TapeViewV0322.number(get(book,"Z"));
     synchronized(quotes){
       Quote prior=quotes.get(record);
       if(prior!=null&&Double.compare(prior.bid(),bid)==0&&Double.compare(prior.ask(),ask)==0&&Double.compare(prior.bidSize(),bidSize)==0&&Double.compare(prior.askSize(),askSize)==0)return;
     }
     Quote quote=new Quote(bid,ask,bidSize,askSize,quoteEvents.incrementAndGet());
     synchronized(quotes){if(quotes.containsKey(record))quotes.put(record,quote);}
-    DebugLogV0321.event("Q",record,null,Double.NaN,Double.NaN,quote,0);
+    DebugLogV0322.event("Q",record,null,Double.NaN,Double.NaN,quote,0);
     lastQuote="bid="+bid+"x"+bidSize+" ask="+ask+"x"+askSize;
   }
   static void trade(Object event){
@@ -144,7 +149,7 @@ final class LiveTapeDataV0321 {
     try{
       Object record=record(event);if(!watch(record))return;
       Quote quote; synchronized(quotes){quote=quotes.get(record);}
-      double last=TapeViewV0321.number(get(event,"D")),size=TapeViewV0321.number(get(event,"F"));
+      double last=TapeViewV0322.number(get(event,"D")),size=TapeViewV0322.number(get(event,"F"));
       if(!Double.isFinite(last)||!Double.isFinite(size))return;
       Captured captured=new Captured(last,size,record,quote);
       synchronized(trades){
@@ -154,8 +159,8 @@ final class LiveTapeDataV0321 {
       }
       synchronized(quotes){current.put(record,captured);}
       tradeEvents.incrementAndGet();
-      DebugLogV0321.event("T",record,event,last,size,quote,quote==null?0:TapeViewV0321.classify(last,quote.bid(),quote.ask()));
-      lastTrade="last="+last+" size="+size+" quote="+(quote==null?"none":quote.bid()+"/"+quote.ask()+"#"+quote.sequence())+" direction="+(quote==null?0:TapeViewV0321.classify(last,quote.bid(),quote.ask()));
+      DebugLogV0322.event("T",record,event,last,size,quote,quote==null?0:TapeViewV0322.classify(last,quote.bid(),quote.ask()));
+      lastTrade="last="+last+" size="+size+" quote="+(quote==null?"none":quote.bid()+"/"+quote.ask()+"#"+quote.sequence())+" direction="+(quote==null?0:TapeViewV0322.classify(last,quote.bid(),quote.ask()));
     }catch(ReflectiveOperationException|RuntimeException e){failure(e);}
   }
   private static void failure(Exception e){errors.incrementAndGet();lastError=e.toString();}
