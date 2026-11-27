@@ -35,24 +35,21 @@ public final class AccuracyAudit {
   }
   static double number(Object value){return value instanceof Number n?n.doubleValue():Double.parseDouble(value.toString());}
   static Book rawBook(Object record)throws Exception{
-    Object top=field(record,"p");if(top==null)return null;Object book=checked(top,top.getClass().getName().equals("jclient.oQ")
-      ?new String[][]{{"cO","jclient.record.a0"}}
-      :new String[][]{{"cO","jclient.record.aZ"},{"cN","jclient.record.a0"}});if(book==null)return null;
+    Field topField=(Field)resolve("top",record.getClass());
+    Object top=topField.get(record);if(top==null)return null;
+    Object book=((Method)resolve("book",top.getClass())).invoke(top);if(book==null)return null;
     return new Book(number(get(book,"G")),number(get(book,"F")),number(get(book,"aa")),number(get(book,"Z")));
   }
-  // Independent reads use known signatures; never call subscription-creating getters.
-  static Object checked(Object object,String[][] signatures)throws Exception{
-    for(String[] signature:signatures){
-      Method method;
-      try{method=object.getClass().getMethod(signature[0]);}catch(NoSuchMethodException e){continue;}
-      if(method.getReturnType().getName().equals(signature[1])){method.setAccessible(true);return method.invoke(object);}
-    }
-    throw new NoSuchMethodException("Unsupported audit accessor: "+object.getClass().getName());
+  // Share only accessor discovery; quote/trade values and the comparison oracle are independent.
+  static Object resolve(String role,Class<?> type)throws Exception{
+    Class<?> resolver=Class.forName("twstapecolor.NativeResolver"+version);
+    Method method=resolver.getDeclaredMethod(role,Class.class);method.setAccessible(true);return method.invoke(null,type);
   }
   static Object record(Object event)throws Exception{
-    return checked(get(event,"ar"),new String[][]{{"rk","jclient.record.o"},{"q6","jclient.record.o"},{"q8","jclient.record.o"}});
+    Object instrument=((Method)resolve("instrument",event.getClass())).invoke(event);
+    return ((Method)resolve("record",instrument.getClass())).invoke(instrument);
   }
-  static Object row(JTable table,int row)throws Exception{return table.getModel().getClass().getMethod("e",int.class,int.class).invoke(table.getModel(),row,-1);}
+  static Object row(JTable table,int row)throws Exception{return ((Method)resolve("row",table.getModel().getClass())).invoke(table.getModel(),row,-1);}
   static boolean valid(double x){return Double.isFinite(x)&&x>0&&x<Double.MAX_VALUE;}
   // Independent decimal oracle. Twelve significant digits remove binary quote
   // noise at the observed stock price precision without rounding to a whole tick.
@@ -156,7 +153,7 @@ public final class AccuracyAudit {
         for(int c=0;c<table.getColumnCount();c++){
           if(table.isCellSelected(r,c)){selected++;continue;}
           Component comp=table.prepareRenderer(table.getCellRenderer(r,c),r,c);
-          boolean wrapped=comp.getClass().getName().equals("twstapecolor.TintRendererV0322");
+          boolean wrapped=comp.getClass().getName().equals("twstapecolor.TintRendererV0324");
           Component original=wrapped?(Component)field(comp,"delegate"):comp;
           Color background=original.getBackground();boolean opaque=original instanceof JComponent jc&&jc.isOpaque();Container parent=original.getParent();Rectangle bounds=original.getBounds();
           int width=table.getColumnModel().getColumn(c).getWidth(),height=table.getRowHeight(r);

@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) · [Operations](user-guide.md) · [Diagnostics](diagnostics.md)
 
-This guide describes the v0.3.22 implementation. Names from TWS are observations about the inspected build, not a supported Interactive Brokers API. Before changing a matcher or accessor, check the behavior against the intended TWS build and preserve the regression cases below.
+This guide describes the v0.3.24 implementation. Names from TWS are observations about the inspected build, not a supported Interactive Brokers API. Before changing a matcher or accessor, check the behavior against the intended TWS build and preserve the regression cases below.
 
 ## Process and code map
 
@@ -11,13 +11,13 @@ The same JAR serves as an external command-line program and an agent loaded into
 | Code | Responsibility |
 | --- | --- |
 | [Main.java](../src/twstapecolor/Main.java) | Parse CLI options, discover TWS, attach, and read the command response. |
-| [AgentV0322.java](../src/twstapecolor/AgentV0322.java) | Agent entry point, response-file protocol, live debug setup and error reporting. |
-| [HookV0322.java](../src/twstapecolor/HookV0322.java) | Command modes, renderer hook, target checks, probe sampling, and restoration. |
-| [FeedHookV0322.java](../src/twstapecolor/FeedHookV0322.java) | Install and remove the quote and live trade callbacks. |
-| [LiveTapeDataV0322.java](../src/twstapecolor/LiveTapeDataV0322.java) | Read native objects and store instrument-scoped snapshots. |
-| [TapeViewV0322.java](../src/twstapecolor/TapeViewV0322.java) | History membership, row mapping, classification snapshots, and view lifecycle. |
-| [TintRendererV0322.java](../src/twstapecolor/TintRendererV0322.java) | Blend backgrounds during painting while delegating native content. |
-| [DebugLogV0322.java](../src/twstapecolor/DebugLogV0322.java) | Bounded asynchronous CSV session. |
+| [AgentV0324.java](../src/twstapecolor/AgentV0324.java) | Agent entry point, response-file protocol, live debug setup and error reporting. |
+| [HookV0324.java](../src/twstapecolor/HookV0324.java) | Command modes, renderer hook, target checks, probe sampling, and restoration. |
+| [FeedHookV0324.java](../src/twstapecolor/FeedHookV0324.java) | Install and remove the quote and live trade callbacks. |
+| [LiveTapeDataV0324.java](../src/twstapecolor/LiveTapeDataV0324.java) | Read native objects and store instrument-scoped snapshots. |
+| [TapeViewV0324.java](../src/twstapecolor/TapeViewV0324.java) | History membership, row mapping, classification snapshots, and view lifecycle. |
+| [TintRendererV0324.java](../src/twstapecolor/TintRendererV0324.java) | Blend backgrounds during painting while delegating native content. |
+| [DebugLogV0324.java](../src/twstapecolor/DebugLogV0324.java) | Bounded asynchronous CSV session. |
 | [ColorTagDetector.java](../src/twstapecolor/ColorTagDetector.java) | Legacy renderer-tag logic retained for regression coverage; not the live price classifier. |
 
 ```mermaid
@@ -96,7 +96,7 @@ The [October 15 report](../QA-REPORT-2026-10-15.md) documents the tested TWS 10.
 ```bash
 bash tools/package.sh
 (cd dist && sha256sum -c SHA256SUMS)
-java -Xverify:all --add-modules jdk.attach -jar dist/twstapecolor-v0.3.22.jar --version
+java -Xverify:all --add-modules jdk.attach -jar dist/twstapecolor-v0.3.24.jar --version
 ```
 
 The project is [MIT licensed](../LICENSE); bundled ASM has a [separate BSD-3-Clause license](../third-party/ASM-LICENSE.txt). Historical files can refer to prior JAR names, helper versions and build directories. Use the current guide for current commands; preserve dated reports as evidence.
@@ -131,7 +131,18 @@ do not use the separate `st()` getter, which can allocate another record.
 `Tws1053Test` checks historical neutrality, ask/bid coloring, frozen quotes and
 name collisions; earlier-version regression tests remain in the suite.
 
-Runtime helper classes are versioned V0322 to avoid reusing V0321 classes in
+Runtime helper classes were versioned V0322 to avoid reusing V0321 classes in
 TWS. Restart TWS before upgrading. Live attachment/rendering on 10.53 could
 not be checked from the process-isolated environment; static inspection and
 headless tests do not establish live feed or rendering correctness.
+
+### Automatic discovery (v0.3.24)
+
+See [automatic discovery](automatic-discovery.md) for the implementation plan,
+matching rules, static archive checker and limits. NativeResolverV0324 caches
+resolutions by Class identity; MethodShapeV0324 provides instruction fingerprints.
+Feed hooks now select a unique method by descriptor and staticness instead of
+requiring the obfuscated name `a`. The descriptor and class anchors above remain
+required. Record access is now a verified pure field read, not a name allowlist.
+The new optional accuracy audit shares accessor discovery with production while
+independently reading values and calculating quote/price/pixel comparisons.

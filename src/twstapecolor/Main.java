@@ -5,7 +5,7 @@ import java.time.*;
 import java.time.format.*;
 import java.util.Set;
 public final class Main {
-  static final String VERSION="v0.3.22";
+  static final String VERSION="v0.3.24";
   public static void main(String[] a) throws Exception {
     if(a.length==1 && (a[0].equals("--version")||a[0].equals("version"))){System.out.println("twstapecolor "+VERSION+" (experimental bytecode hook)");return;}
     if(a.length<1 || !Set.of("test-paint","start","status","stop","dump","probe","report").contains(a[0])) {
@@ -78,8 +78,8 @@ public final class Main {
     return matches.get(0).pid();
   }
   private static void usage(){
-    System.err.println("Usage: java -jar twstapecolor-v0.3.22.jar start [--pid PID] [--ask-color '#RRGGBB'] [--bid-color '#RRGGBB'] [--debug]");
-    System.err.println("       java -jar twstapecolor-v0.3.22.jar status|stop|test-paint|probe|report|dump [--pid PID] [--debug]");
+    System.err.println("Usage: java -jar twstapecolor-v0.3.24.jar start [--pid PID] [--ask-color '#RRGGBB'] [--bid-color '#RRGGBB'] [--debug]");
+    System.err.println("       java -jar twstapecolor-v0.3.24.jar status|stop|test-paint|probe|report|dump [--pid PID] [--debug]");
     System.exit(2);
   }
 }

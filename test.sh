@@ -24,3 +24,4 @@ java -Xmx64m -Xverify:all -Djava.awt.headless=true -cp out/classes:out/test-clas
 java -Xverify:all -Djava.awt.headless=true -cp out/classes:out/test-classes:lib/asm-9.8.jar twstapecolor.DiscoveryTest
 java -Xverify:all -Djava.awt.headless=true -cp out/classes:out/test-classes:lib/asm-9.8.jar twstapecolor.Tws1052Test
 java -Xverify:all -Djava.awt.headless=true -cp out/classes:out/test-classes:lib/asm-9.8.jar twstapecolor.Tws1053Test
+java -Xverify:all -Djava.awt.headless=true -cp out/classes:out/test-classes:lib/asm-9.8.jar twstapecolor.NativeResolverTest

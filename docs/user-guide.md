@@ -9,7 +9,7 @@ You need a compatible TWS process, a Time & Sales window, and **JDK 21 or newer*
 | Method | What you need | When to choose it |
 | --- | --- | --- |
 | Linux source build | JDK, Bash, `unzip`; `curl` or `wget` if ASM must be downloaded | You are editing the code or want to build from the checkout |
-| Shared distribution JAR | JDK and the [versioned JAR](../dist/twstapecolor-v0.3.22.jar) | You want to try the tool without compiling it |
+| Shared distribution JAR | JDK and the [versioned JAR](../dist/twstapecolor-v0.3.24.jar) | You want to try the tool without compiling it |
 | Windows double-click launchers | JDK, the same JAR, and both `.cmd` files in [dist](../dist/README.md) | You want to start and stop from Explorer |
 
 The JAR bundles ASM 9.8 and both license notices. It does not bundle Java or TWS. The Windows instructions are provided for testing; there is no verified Windows compatibility claim.
@@ -32,7 +32,7 @@ To run the distribution JAR instead, keep its filename unchanged and put it in a
 
 ```bash
 (cd dist && sha256sum -c SHA256SUMS)
-java --add-modules jdk.attach -jar dist/twstapecolor-v0.3.22.jar start
+java --add-modules jdk.attach -jar dist/twstapecolor-v0.3.24.jar start
 ```
 
 Replace `start` with `status` or `stop` for those actions. The checksum verifies the file against the repository's published checksum.
@@ -45,10 +45,10 @@ For direct use from PowerShell in the project directory:
 
 ```powershell
 java -version
-Get-FileHash .\dist\twstapecolor-v0.3.22.jar -Algorithm SHA256
-java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.22.jar start
-java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.22.jar status
-java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.22.jar stop
+Get-FileHash .\dist\twstapecolor-v0.3.24.jar -Algorithm SHA256
+java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.24.jar start
+java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.24.jar status
+java --add-modules jdk.attach -jar .\dist\twstapecolor-v0.3.24.jar stop
 ```
 
 Compare the hash to [SHA256SUMS](../dist/SHA256SUMS). The versioned filename lets the launcher load that file directly, avoiding replacement of a JAR the Windows JVM may hold open. Use Windows Java for Windows TWS, rather than invoking Linux Java through WSL.

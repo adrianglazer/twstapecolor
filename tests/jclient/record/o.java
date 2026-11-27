@@ -1,5 +1,5 @@
 package jclient.record;
 public final class o {
-  private final Object p;
-  public o(Object top){p=top;}
+  private final jclient.oR p;
+  public o(jclient.oR top){p=top;}
 }
